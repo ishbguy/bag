@@ -67,6 +67,12 @@ __bag_trim() {
     echo "$str"
 }
 
+declare -gar BAG_REQUIRES=(git)
+for req in "${BAG_REQUIRES[@]}"; do
+    hash "$req" &>/dev/null || __bag_warn "bag need '$req'." || return 1
+done
+
+
 bag_help() { echo "$BAG_HELP"; }
 bag_version() { echo "$BAG_VERSION"; }
 
