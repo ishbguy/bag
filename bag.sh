@@ -101,7 +101,7 @@ bag_load_plugins() {
         plug="$(basename "$plug")"
         [[ -e $BAG_BASE_DIR/$plug/autoload ]] || continue
         for script in "$BAG_BASE_DIR/$plug"/autoload/*.sh; do
-            source "$script"
+            [[ -f $script ]] && source "$script"
         done
     done
 }

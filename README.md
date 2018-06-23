@@ -34,7 +34,7 @@
 ## :rocket: Installation
 
 ``` bash
-$ git clone https://github.com/ishbguy/bag
+$ git clone https://github.com/ishbguy/bag /path/to/bag
 ```
 or
 ```bash
