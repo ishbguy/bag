@@ -171,7 +171,7 @@ bag_install() {
     for bag in "${bags[@]}"; do
         bag="$(__bag_trim "$bag")"
         bag="${bag%%/}"
-        bag_name="$(basename "$bag")"
+        bag_name="$(basename "${bag##*:}")"
 
         [[ -n ${BAG_DOWNLOADER[${bag%%:*}]} ]] \
             && __bag_defined_func "${BAG_DOWNLOADER[${bag%%:*}]}" \
@@ -181,7 +181,7 @@ bag_install() {
         [[ ! -e $BAG_BASE_DIR/$bag_name ]] \
             || __bag_warn "Already exist bag: $bag_name" || continue
 
-        echo "Install $bag_need..."
+        echo "Install $bag..."
         "${BAG_DOWNLOADER[${bag%%:*}]}" install "$bag" \
             && echo "$bag" >>"$BAG_BASE_DIR/bags" \
             || __bag_warn "Failed to install $bag"
@@ -194,7 +194,7 @@ bag_update() {
     for bag in "${bags[@]}"; do
         bag="$(__bag_trim "$bag")"
         bag="${bag%%/}"
-        bag_name="$(basename "${bag#*:}")"
+        bag_name="$(basename "${bag##*:}")"
         bag_need="$(sed -rn '/'"$bag_name"'/p' "$BAG_BASE_DIR/bags" 2>/dev/null)"
         [[ -n $bag_need ]] || __bag_warn "No such bag: $bag" || continue
 
