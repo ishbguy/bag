@@ -88,8 +88,9 @@ bag_plug() {
 }
 
 bag_update_path() {
-    local -a bags=($(find "$BAG_BASE_DIR" -maxdepth 1 -mindepth 1 -type d -o -type l))
+    local -a bags=($(bag list))
     for bag in "${bags[@]}"; do
+        bag="$BAG_BASE_DIR/$(basename "${bag#*:}")"
         PATH+=":$bag"
         [[ -d $bag/bin ]] && PATH+=":$bag/bin"
     done
@@ -98,7 +99,7 @@ bag_update_path() {
 
 bag_load_plugins() {
     for plug in "${BAG_PLUGINS[@]}"; do
-        plug="$(basename "$plug")"
+        plug="$(basename "${plug#*:}")"
         [[ -e $BAG_BASE_DIR/$plug/autoload ]] || continue
         for script in "$BAG_BASE_DIR/$plug"/autoload/*.sh; do
             [[ -f $script ]] && source "$script"
