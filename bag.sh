@@ -40,6 +40,7 @@ subcmds:
 $(__bag_subcmds_help BAG_SUBCMDS_HELP)
 
 This program is released under the terms of MIT License.
+Get more infomation from <$BAG_URL>.
 EOF
 )
 declare -gA BAG_SUBCMDS
