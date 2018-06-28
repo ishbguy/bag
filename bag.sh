@@ -61,46 +61,49 @@ __bag_is_repo() { __bag_is_local_repo "$1" || __bag_is_remote_repo "$1"; }
 __bag_defined() { declare -p "$1" &>/dev/null; }
 __bag_defined_func() { declare -f "$1" &>/dev/null; }
 __bag_encode_name() { echo "${1//[^[:alnum:]]/_}"; }
-__bag_trim() {
+__bag_trim_space() {
     local str="$1"
     str="${str%%+( )}"
     str="${str##+( )}"
     echo "$str"
 }
+__bag_get_bag_name() {
+    local bag_url="$(__bag_trim_space "$1")"
+    bag_url="${bag_url%%+(/)}"
+    echo "${bag_url##*/}"
+}
+__bag_has_bag() { [[ -n $1 && -d $BAG_BASE_DIR/$1 ]]; }
+__bag_has_mapfunc() {
+    local -n map="$1"; shift
+    [[ -n $1 && -n ${map[$1]} ]] && __bag_defined_func "${map[$1]}"
+}
+__bag_has_cmd() { __bag_has_mapfunc BAG_SUBCMDS "$1"; }
+__bag_has_downloader() { __bag_has_mapfunc BAG_DOWNLOADER "$1"; }
 
 declare -gar BAG_REQUIRES=(git)
 for req in "${BAG_REQUIRES[@]}"; do
     hash "$req" &>/dev/null || __bag_warn "bag need '$req'." || return 1
 done
 
-
-bag_help() { echo "$BAG_HELP"; }
 bag_version() { echo "$BAG_VERSION"; }
+bag_help() { echo "$BAG_HELP"; }
+bag_base() { [[ -n $1 ]] && __bag_is_local_repo "$1" && BAG_BASE_DIR="$1"; }
+bag_plug() { [[ -n $bag ]] && BAG_PLUGINS+=("$bag"); }
+bag_list() { [[ -f $BAG_BASE_DIR/bags ]] && cat "$BAG_BASE_DIR/bags"; }
 
-bag_base() {
-    [[ -n $1 && -d $1 ]] || __bag_warn "No such directory: $1" || return 1
-    BAG_BASE_DIR="$1"
-}
-
-bag_plug() {
-    local bag="$(__bag_trim "$1")"
-    bag="${bag%%/}"
-    [[ -n $bag ]] && BAG_PLUGINS+=("$bag")
-}
-
-bag_update_path() {
+__bag_update_path() {
     local -a bags=($(bag list))
-    for bag in "${bags[@]}"; do
-        bag="$BAG_BASE_DIR/$(basename "${bag#*:}")"
+    for bag_url in "${bags[@]}"; do
+        local bag="$BAG_BASE_DIR/$(__bag_get_bag_name "${bag_url##*:}")"
         PATH+=":$bag"
         [[ -d $bag/bin ]] && PATH+=":$bag/bin"
     done
     export PATH
 }
 
-bag_load_plugins() {
-    for plug in "${BAG_PLUGINS[@]}"; do
-        plug="$(basename "${plug#*:}")"
+__bag_load_plugins() {
+    for plug_url in "${BAG_PLUGINS[@]}"; do
+        local plug="$(__bag_get_bag_name "${plug_url##*:}")"
         [[ -e $BAG_BASE_DIR/$plug/autoload ]] || continue
         for script in "$BAG_BASE_DIR/$plug"/autoload/*.sh; do
             [[ -f $script ]] && source "$script"
@@ -109,57 +112,53 @@ bag_load_plugins() {
 }
 
 bag_load() {
-    bag_update_path
-    bag_load_plugins
+    __bag_update_path
+    __bag_load_plugins
 }
 
 bag_downloader_git() {
-    [[ $# -eq 2 ]] || __bag_warn "Not enough args." || return 1
     local bag_opt="$1"
     local bag_url="${2#*:}"
-    local bag_name=$(basename "$bag_url")
+    local bag=$(__bag_get_bag_name "$bag_url")
 
     case $bag_opt in
-        install) git clone "$bag_url" "$BAG_BASE_DIR/$bag_name" ;;
-        update) (cd "$BAG_BASE_DIR/$bag_name" && git pull) ;;
+        install) git clone "$bag_url" "$BAG_BASE_DIR/$bag" ;;
+        update) (cd "$BAG_BASE_DIR/$bag" && git pull) ;;
         *) __bag_warn "No such option: $bag_opt" ;;
     esac
 }
 
 bag_downloader_github() {
-    [[ $# -eq 2 ]] || __bag_warn "Not enough args." || return 1
     local bag_opt="$1"
     local bag_url="https://github.com/${2#*:}"
-    local bag_name=$(basename "$bag_url")
+    local bag=$(__bag_get_bag_name "$bag_url")
 
     case $bag_opt in
-        install) git clone "$bag_url" "$BAG_BASE_DIR/$bag_name" ;;
-        update) (cd "$BAG_BASE_DIR/$bag_name" && git pull) ;;
+        install) git clone "$bag_url" "$BAG_BASE_DIR/$bag" ;;
+        update) (cd "$BAG_BASE_DIR/$bag" && git pull) ;;
         *) __bag_warn "No such option: $bag_opt" ;;
     esac
 }
 
 bag_downloader_local() {
-    [[ $# -eq 2 ]] || __bag_warn "Not enough args." || return 1
     local bag_opt="$1"
     local bag_url="${2#*:}"
-    local bag_name=$(basename "$bag_url")
+    local bag=$(__bag_get_bag_name "$bag_url")
 
     case $bag_opt in
-        install) cp -r "$bag_url" "$BAG_BASE_DIR/$bag_name" ;;
-        update) cp -r "$bag_url" "$BAG_BASE_DIR/$bag_name" ;;
+        install) cp -r "$bag_url" "$BAG_BASE_DIR/$bag" ;;
+        update) cp -r "$bag_url" "$BAG_BASE_DIR/$bag" ;;
         *) __bag_warn "No such option: $bag_opt" ;;
     esac
 }
 
 bag_downloader_link() {
-    [[ $# -eq 2 ]] || __bag_warn "Not enough args." || return 1
     local bag_opt="$1"
     local bag_url="${2#*:}"
-    local bag_name=$(basename "$bag_url")
+    local bag=$(__bag_get_bag_name "$bag_url")
 
     case $bag_opt in
-        install) ln -s "$bag_url" "$BAG_BASE_DIR/$bag_name" ;;
+        install) ln -s "$bag_url" "$BAG_BASE_DIR/$bag" ;;
         update) ;;
         *) __bag_warn "No such option: $bag_opt" ;;
     esac
@@ -168,42 +167,33 @@ bag_downloader_link() {
 bag_install() {
     local -a bags=("$@")
     [[ ${#bags[@]} -eq 0 ]] && bags=("${BAG_PLUGINS[@]}")
-    for bag in "${bags[@]}"; do
-        bag="$(__bag_trim "$bag")"
-        bag="${bag%%/}"
-        bag_name="$(basename "${bag##*:}")"
+    [[ -d $BAG_BASE_DIR ]] || mkdir "$BAG_BASE_DIR"
+    for bag_url in "${bags[@]}"; do
+        local bag="$(__bag_get_bag_name "${bag_url##*:}")"
 
-        [[ -n ${BAG_DOWNLOADER[${bag%%:*}]} ]] \
-            && __bag_defined_func "${BAG_DOWNLOADER[${bag%%:*}]}" \
-            || __bag_warn "Does not support '${bag%%:*}' to download." || continue
+        __bag_has_downloader "${bag_url%%:*}" \
+            || __bag_warn "Does not support '${bag_url%%:*}' to download." || continue
+        ! __bag_has_bag "$bag" \
+            || __bag_warn "Already exist bag: $bag" || continue
 
-        [[ -d $BAG_BASE_DIR ]] || mkdir "$BAG_BASE_DIR"
-        [[ ! -e $BAG_BASE_DIR/$bag_name ]] \
-            || __bag_warn "Already exist bag: $bag_name" || continue
-
-        echo "Install $bag..."
-        "${BAG_DOWNLOADER[${bag%%:*}]}" install "$bag" \
-            && echo "$bag" >>"$BAG_BASE_DIR/bags" \
-            || __bag_warn "Failed to install $bag"
+        echo "Install $bag_url..."
+        "${BAG_DOWNLOADER[${bag%%:*}]}" install "$bag_url" \
+            && echo "$bag_url" >>"$BAG_BASE_DIR/bags" \
+            || __bag_warn "Failed to install $bag_url"
     done
 }
 
 bag_update() {
     local -a bags=("$@")
     [[ ${#bags[@]} -eq 0 ]] && bags=($(bag list))
-    for bag in "${bags[@]}"; do
-        bag="$(__bag_trim "$bag")"
-        bag="${bag%%/}"
-        bag_name="$(basename "${bag##*:}")"
-        bag_need="$(sed -rn '/'"$bag_name"'/p' "$BAG_BASE_DIR/bags" 2>/dev/null)"
-        [[ -n $bag_need ]] || __bag_warn "No such bag: $bag" || continue
+    for bag_url in "${bags[@]}"; do
+        local bag="$(__bag_get_bag_name "${bag_url##*:}")"
+        local bag_need="$(sed -rn '/'"\\/$bag"'/p' "$BAG_BASE_DIR/bags" 2>/dev/null)"
 
-        [[ -n ${BAG_DOWNLOADER[${bag_need%%:*}]} ]] \
-            && __bag_defined_func "${BAG_DOWNLOADER[${bag_need%%:*}]}" \
+        __bag_has_downloader "${bag_need%%:*}" \
             || __bag_warn "Does not support '${bag_need%%:*}' to download." || continue
-
-        [[ -e $BAG_BASE_DIR/$bag_name ]] \
-            || __bag_warn "Does not exist bag: $bag_name" || continue
+        [[ -n $bag_need ]] && __bag_has_bag "$bag" \
+            || __bag_warn "No such bag: $bag_url" || continue
 
         echo "Update $bag_need..."
         "${BAG_DOWNLOADER[${bag_need%%:*}]}" update "$bag_need" \
@@ -212,29 +202,19 @@ bag_update() {
 }
 
 bag_uninstall() {
-    for bag in "$@"; do
-        bag="$(__bag_trim "$bag")"
-        bag="${bag%%/}"
-        bag_name="$(basename "$bag")"
-
-        [[ -d $BAG_BASE_DIR/$bag_name ]] || __bag_warn "No such bag: $1" || continue
-
-        rm -rf "$BAG_BASE_DIR/$bag_name" \
-            && sed -ri '/'"$bag_name"'$/d' "$BAG_BASE_DIR/bags"
+    for bag_url in "$@"; do
+        local bag="$(__bag_get_bag_name "$bag_url")"
+        __bag_has_bag "$bag" || __bag_warn "No such bag: $bag" || continue
+        echo "Uninstall $bag..."
+        rm -rf "$BAG_BASE_DIR/$bag" && sed -ri '/'"\\/$bag"'$/d' "$BAG_BASE_DIR/bags"
     done
 }
 
-bag_list() { [[ -f $BAG_BASE_DIR/bags ]] && cat "$BAG_BASE_DIR/bags"; }
-
 bag() {
     local cmd="$1"; shift
-    [[ -z $cmd ]] \
-        && { __bag_warn "Need at least a command."; "${BAG_SUBCMDS[help]}"; return 1; }
-    [[ -z ${BAG_SUBCMDS[$cmd]} ]] \
-        && { __bag_warn "No such command: $cmd"; "${BAG_SUBCMDS[help]}"; return 1; }
-
-    __bag_defined_func "${BAG_SUBCMDS[$cmd]}" \
-        && "${BAG_SUBCMDS[$cmd]}" "$@"
+    __bag_has_cmd "$cmd" \
+        || { __bag_warn "No such command: '$cmd'"; "${BAG_SUBCMDS[help]}"; return 1; }
+    "${BAG_SUBCMDS[$cmd]}" "$@"
 }
 
 [[ ${FUNCNAME[0]} == "main" ]] \
