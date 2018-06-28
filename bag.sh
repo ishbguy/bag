@@ -8,6 +8,7 @@ declare -gr BAG_SOURCED=1
 declare -gr BAG_ABS_SRC="$(realpath "${BASH_SOURCE[0]}")"
 declare -gr BAG_ABS_DIR="$(dirname "$BAG_ABS_SRC")"
 
+shopt -s extglob
 declare -g  BAG_AUTHOR=ishbguy
 declare -g  BAG_PRONAME=bag
 declare -g  BAG_VERSION='v0.0.1'
@@ -170,6 +171,7 @@ bag_install() {
     [[ ${#bags[@]} -eq 0 ]] && bags=("${BAG_PLUGINS[@]}")
     [[ -d $BAG_BASE_DIR ]] || mkdir "$BAG_BASE_DIR"
     for bag_url in "${bags[@]}"; do
+        bag_url="${bag_url%%+(/)}"
         local bag="$(__bag_get_bag_name "${bag_url##*:}")"
 
         __bag_has_downloader "${bag_url%%:*}" \
@@ -178,7 +180,7 @@ bag_install() {
             || __bag_warn "Already exist bag: $bag" || continue
 
         echo "Install $bag_url..."
-        "${BAG_DOWNLOADER[${bag%%:*}]}" install "$bag_url" \
+        "${BAG_DOWNLOADER[${bag_url%%:*}]}" install "$bag_url" \
             && echo "$bag_url" >>"$BAG_BASE_DIR/bags" \
             || __bag_warn "Failed to install $bag_url"
     done
@@ -189,16 +191,16 @@ bag_update() {
     [[ ${#bags[@]} -eq 0 ]] && bags=($(bag list))
     for bag_url in "${bags[@]}"; do
         local bag="$(__bag_get_bag_name "${bag_url##*:}")"
-        local bag_need="$(sed -rn '/'"\\/$bag"'/p' "$BAG_BASE_DIR/bags" 2>/dev/null)"
+        local bag_old="$(sed -rn '/'"\\/$bag"'/p' "$BAG_BASE_DIR/bags" 2>/dev/null)"
 
-        __bag_has_downloader "${bag_need%%:*}" \
-            || __bag_warn "Does not support '${bag_need%%:*}' to download." || continue
-        [[ -n $bag_need ]] && __bag_has_bag "$bag" \
+        __bag_has_downloader "${bag_old%%:*}" \
+            || __bag_warn "Does not support '${bag_old%%:*}' to download." || continue
+        [[ $bag_old =~ ${bag_url%%/} ]] && __bag_has_bag "$bag" \
             || __bag_warn "No such bag: $bag_url" || continue
 
-        echo "Update $bag_need..."
-        "${BAG_DOWNLOADER[${bag_need%%:*}]}" update "$bag_need" \
-            || __bag_warn "Failed to update $bag_need"
+        echo "Update $bag_old..."
+        "${BAG_DOWNLOADER[${bag_old%%:*}]}" update "$bag_old" \
+            || __bag_warn "Failed to update $bag_old"
     done
 }
 
