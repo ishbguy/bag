@@ -97,18 +97,19 @@ BAG_ANSI_COLOR[reset_hidden]=28
 
 __bag_set_color() {
     local color="${BAG_ANSI_COLOR[default]}"
-    [[ -n $1 && -n ${BAG_ANSI_COLOR[$1]} ]] && color="${BAG_ANSI_COLOR[$1]}"
-    printf '\x1B[%sm' "$([[ -n $2 && -n ${BAG_ANSI_COLOR[$2]} ]] \
+    __bag_has_map BAG_ANSI_COLOR "$1" && color="${BAG_ANSI_COLOR[$1]}"
+    printf '\x1B[%sm' "$(__bag_has_map BAG_ANSI_COLOR "$2" \
         && echo "$color;${BAG_ANSI_COLOR[$2]}" || echo "$color")"
 }
 __bag_color_echo() {
     local color=default
-    local bold
-    [[ -n $1 && -n ${BAG_ANSI_COLOR[$1]} ]] \
-        && { color="$1"; shift; }
-    [[ -n $1 && -n ${BAG_ANSI_COLOR[$1]} ]] \
-        && { bold="${BAG_ANSI_COLOR[$1]}"; shift; }
-    __bag_set_color "$color" "$bold"
+    local format
+    if __bag_has_map BAG_ANSI_COLOR "$1"; then
+        color="$1"; shift;
+        __bag_has_map BAG_ANSI_COLOR "$1" \
+            && { format="${BAG_ANSI_COLOR[$1]}"; shift; }
+    fi
+    __bag_set_color "$color" "$format"
     echo -e "$@"
     __bag_set_color reset
 }
@@ -132,9 +133,10 @@ __bag_get_bag_name() {
     echo "${bag_url##*/}"
 }
 __bag_has_bag() { [[ -n $1 && -d $BAG_BASE_DIR/$1 ]]; }
+__bag_has_map() { local -n map="$1"; shift; [[ -n $1 && -n ${map[$1]} ]]; }
 __bag_has_mapfunc() {
-    local -n map="$1"; shift
-    [[ -n $1 && -n ${map[$1]} ]] && __bag_defined_func "${map[$1]}"
+    local -n map="$1"
+    __bag_has_map "$@" && __bag_defined_func "${map[$2]}"
 }
 __bag_has_cmd() { __bag_has_mapfunc BAG_SUBCMDS "$1"; }
 __bag_has_downloader() { __bag_has_mapfunc BAG_DOWNLOADER "$1"; }
