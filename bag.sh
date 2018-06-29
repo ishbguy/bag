@@ -56,6 +56,63 @@ BAG_DOWNLOADER[file]="bag_downloader_local"
 BAG_DOWNLOADER[local]="bag_downloader_local"
 BAG_DOWNLOADER[link]="bag_downloader_link"
 
+# ANSI 8 colors
+declare -gA BAG_ANSI_COLOR
+BAG_ANSI_COLOR[black]=30
+BAG_ANSI_COLOR[red]=31
+BAG_ANSI_COLOR[green]=32
+BAG_ANSI_COLOR[yellow]=33
+BAG_ANSI_COLOR[blue]=34
+BAG_ANSI_COLOR[magenta]=35
+BAG_ANSI_COLOR[cyan]=36
+BAG_ANSI_COLOR[white]=37
+BAG_ANSI_COLOR[default]=39
+
+BAG_ANSI_COLOR[bg_black]=40
+BAG_ANSI_COLOR[bg_red]=41
+BAG_ANSI_COLOR[bg_green]=42
+BAG_ANSI_COLOR[bg_yellow]=43
+BAG_ANSI_COLOR[bg_blue]=44
+BAG_ANSI_COLOR[bg_magenta]=45
+BAG_ANSI_COLOR[bg_cyan]=46
+BAG_ANSI_COLOR[bg_white]=47
+BAG_ANSI_COLOR[bg_default]=49
+
+# ANSI color set
+BAG_ANSI_COLOR[bold]=1
+BAG_ANSI_COLOR[dim]=2
+BAG_ANSI_COLOR[underline]=4
+BAG_ANSI_COLOR[blink]=5
+BAG_ANSI_COLOR[invert]=7
+BAG_ANSI_COLOR[hidden]=8
+
+# ANSI color reset
+BAG_ANSI_COLOR[reset]=0
+BAG_ANSI_COLOR[reset_bold]=21
+BAG_ANSI_COLOR[reset_dim]=22
+BAG_ANSI_COLOR[reset_underline]=24
+BAG_ANSI_COLOR[reset_blink]=25
+BAG_ANSI_COLOR[reset_invert]=27
+BAG_ANSI_COLOR[reset_hidden]=28
+
+__bag_set_color() {
+    local color="${BAG_ANSI_COLOR[default]}"
+    [[ -n $1 && -n ${BAG_ANSI_COLOR[$1]} ]] && color="${BAG_ANSI_COLOR[$1]}"
+    printf '\x1B[%sm' "$([[ -n $2 && -n ${BAG_ANSI_COLOR[$2]} ]] \
+        && echo "$color;${BAG_ANSI_COLOR[$2]}" || echo "$color")"
+}
+__bag_color_echo() {
+    local color=default
+    local bold
+    [[ -n $1 && -n ${BAG_ANSI_COLOR[$1]} ]] \
+        && { color="$1"; shift; }
+    [[ -n $1 && -n ${BAG_ANSI_COLOR[$1]} ]] \
+        && { bold="${BAG_ANSI_COLOR[$1]}"; shift; }
+    __bag_set_color "$color" "$bold"
+    echo -e "$@"
+    __bag_set_color reset
+}
+
 __bag_warn() { echo "$@" >&2; return 1; }
 __bag_is_local_repo() { [[ $1 =~ ^/([[:alnum:]_-/.]+)*$ ]]; }
 __bag_is_remote_repo() { [[ $1 =~ ^[[:alnum:]_-][[:alnum:]_-.]*/[[:alnum:]_-.]+$ ]]; }
@@ -179,7 +236,7 @@ bag_install() {
         ! __bag_has_bag "$bag" \
             || __bag_warn "Already exist bag: $bag" || continue
 
-        echo "Install $bag_url..."
+        __bag_color_echo yellow "Install $bag_url..."
         "${BAG_DOWNLOADER[${bag_url%%:*}]}" install "$bag_url" \
             && echo "$bag_url" >>"$BAG_BASE_DIR/bags" \
             || __bag_warn "Failed to install $bag_url"
@@ -198,7 +255,7 @@ bag_update() {
         [[ $bag_old =~ ${bag_url%%/} ]] && __bag_has_bag "$bag" \
             || __bag_warn "No such bag: $bag_url" || continue
 
-        echo "Update $bag_old..."
+        __bag_color_echo yellow "Update $bag_old..."
         "${BAG_DOWNLOADER[${bag_old%%:*}]}" update "$bag_old" \
             || __bag_warn "Failed to update $bag_old"
     done
@@ -208,7 +265,7 @@ bag_uninstall() {
     for bag_url in "$@"; do
         local bag="$(__bag_get_bag_name "$bag_url")"
         __bag_has_bag "$bag" || __bag_warn "No such bag: $bag" || continue
-        echo "Uninstall $bag..."
+        __bag_color_echo yellow "Uninstall $bag..."
         rm -rf "$BAG_BASE_DIR/$bag" && sed -ri '/'"\\/$bag"'$/d' "$BAG_BASE_DIR/bags"
     done
 }
