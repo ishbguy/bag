@@ -106,8 +106,7 @@ __bag_color_echo() {
     local format
     if __bag_has_map BAG_ANSI_COLOR "$1"; then
         color="$1"; shift;
-        __bag_has_map BAG_ANSI_COLOR "$1" \
-            && { format="${BAG_ANSI_COLOR[$1]}"; shift; }
+        __bag_has_map BAG_ANSI_COLOR "$1" && { format="$1"; shift; }
     fi
     __bag_set_color "$color" "$format"
     echo -e "$@"
