@@ -148,7 +148,7 @@ done
 bag_version() { echo "$BAG_VERSION"; }
 bag_help() { echo "$BAG_HELP"; }
 bag_base() { [[ -n $1 ]] && __bag_is_local_repo "$1" && BAG_BASE_DIR="$1"; }
-bag_plug() { [[ -n $bag ]] && BAG_PLUGINS+=("$bag"); }
+bag_plug() { [[ -n $1 ]] && BAG_PLUGINS+=("$1"); }
 bag_list() { [[ -f $BAG_BASE_DIR/bags ]] && cat "$BAG_BASE_DIR/bags"; }
 
 __bag_update_path() {
