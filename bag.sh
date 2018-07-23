@@ -155,7 +155,6 @@ __bag_update_path() {
     local -a bags=($(bag list))
     for bag_url in "${bags[@]}"; do
         local bag="$BAG_BASE_DIR/$(__bag_get_bag_name "${bag_url##*:}")"
-        PATH+=":$bag"
         [[ -d $bag/bin ]] && PATH+=":$bag/bin"
     done
     export PATH
