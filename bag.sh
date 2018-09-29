@@ -114,7 +114,7 @@ __bag_color_echo() {
 }
 
 __bag_warn() { __bag_color_echo red "$@" >&2; return 1; }
-__bag_is_local_repo() { [[ $1 =~ ^/([[:alnum:]_-/.]+)*$ ]]; }
+__bag_is_local_repo() { [[ $1 =~ ^/([[:alnum:]_/.-]+)*$ ]]; }
 __bag_is_remote_repo() { [[ $1 =~ ^[[:alnum:]_-][[:alnum:]_-.]*/[[:alnum:]_-.]+$ ]]; }
 __bag_is_repo() { __bag_is_local_repo "$1" || __bag_is_remote_repo "$1"; }
 __bag_defined() { declare -p "$1" &>/dev/null; }
