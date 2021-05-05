@@ -277,7 +277,7 @@ bag() {
     "${BAG_SUBCMDS[$cmd]}" "$@"
 }
 
-[[ ${FUNCNAME[0]} == "main" ]] \
+[[ -z ${FUNCNAME[0]} || ${FUNCNAME[0]} == "main" ]] \
     && bag "$@"
 
 # vim:set ft=sh ts=4 sw=4:
