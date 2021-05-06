@@ -155,7 +155,7 @@ __bag_update_path() {
     local -a bags=($(bag list))
     for bag_url in "${bags[@]}"; do
         local bag="$BAG_BASE_DIR/$(__bag_get_bag_name "${bag_url##*:}")"
-        [[ -d $bag/bin ]] && PATH+=":$bag/bin"
+        [[ -d $bag/bin && ! $PATH =~ $bag/bin ]] && PATH+=":$bag/bin"
     done
     export PATH
 }
@@ -164,6 +164,7 @@ __bag_load_plugins() {
     for plug_url in "${BAG_PLUGINS[@]}"; do
         local plug="$(__bag_get_bag_name "${plug_url##*:}")"
         [[ -e $BAG_BASE_DIR/$plug/autoload ]] || continue
+        # FIXME: avoid to load a script for twice
         for script in "$BAG_BASE_DIR/$plug"/autoload/*.sh; do
             [[ -f $script ]] && source "$script"
         done
