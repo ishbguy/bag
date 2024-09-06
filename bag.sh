@@ -69,7 +69,8 @@ __bag_printc() {
     __bag_set_color reset
 }
 
-__bag_warn() { __bag_printc red "$@" >&2; return 1; }
+__bag_warn() { __bag_printc yellow "$@" >&2; return 1; }
+__bag_error() { __bag_printc red "$@" >&2; return 1; }
 __bag_is_local_repo() { [[ $1 =~ ^/([[:alnum:]_/.-]+)*$ ]]; }
 __bag_is_remote_repo() { [[ $1 =~ ^[[:alnum:]_-][[:alnum:]_-.]*/[[:alnum:]_-.]+$ ]]; }
 __bag_is_repo() { __bag_is_local_repo "$1" || __bag_is_remote_repo "$1"; }
@@ -93,7 +94,7 @@ __bag_require() {
         hash "$req" &>/dev/null || missed+=("$req")
     done
     local IFS=,
-    [[ ${#missed[@]} -eq 0 ]] || __bag_warn "bag needs: ${missed[*]}." || return 1
+    [[ ${#missed[@]} -eq 0 ]] || __bag_error "bag needs: ${missed[*]}." || return 1
 }
 __bag_has_cmd() { __bag_has_mapfunc BAG_SUBCMDS "$1"; }
 __bag_get_bag_name() {
@@ -126,6 +127,7 @@ EOF
 bag_base() { [[ -n $1 ]] && __bag_is_local_repo "$1" && BAG_BASE_DIR="$1"; }
 bag_plug() { [[ -n $1 ]] && BAG_PLUGINS+=("$1"); }
 bag_list() { [[ -f $BAG_BASE_DIR/bags ]] && cat "$BAG_BASE_DIR/bags"; }
+bag_edit() { [[ -f $BAG_BASE_DIR/bags ]] &&  "${EDITOR:-vim}" "$BAG_BASE_DIR/bags"; }
 
 __bag_update_path() {
     local -a bags=($(bag list))
@@ -160,7 +162,7 @@ bag_downloader_git() {
     case $bag_opt in
         install) git clone "$bag_url" "$BAG_BASE_DIR/$bag" ;;
         update) (cd "$BAG_BASE_DIR/$bag" && git pull) ;;
-        *) __bag_warn "No such option: $bag_opt" ;;
+        *) __bag_error "No such option: $bag_opt" ;;
     esac
 }
 bag_downloader_github() {
@@ -173,7 +175,7 @@ bag_downloader_github() {
     case $bag_opt in
         install) git clone "$bag_url" "$BAG_BASE_DIR/$bag" ;;
         update) (cd "$BAG_BASE_DIR/$bag" && git pull) ;;
-        *) __bag_warn "No such option: $bag_opt" ;;
+        *) __bag_error "No such option: $bag_opt" ;;
     esac
 }
 bag_downloader_gh() {
@@ -187,7 +189,7 @@ bag_downloader_local() {
     case $bag_opt in
         install) cp -r "$bag_url" "$BAG_BASE_DIR/$bag" ;;
         update) cp -r "$bag_url" "$BAG_BASE_DIR/$bag" ;;
-        *) __bag_warn "No such option: $bag_opt" ;;
+        *) __bag_error "No such option: $bag_opt" ;;
     esac
 }
 bag_downloader_file() {
@@ -201,7 +203,7 @@ bag_downloader_link() {
     case $bag_opt in
         install) ln -s "$bag_url" "$BAG_BASE_DIR/$bag" ;;
         update) ;;
-        *) __bag_warn "No such option: $bag_opt" ;;
+        *) __bag_error "No such option: $bag_opt" ;;
     esac
 }
 __bag_init_downloader() {
@@ -229,14 +231,14 @@ bag_install() {
         local bag="$(__bag_get_bag_name "${bag_url##*:}")"
 
         __bag_has_downloader "${bag_url%%:*}" \
-            || __bag_warn "Does not support '${bag_url%%:*}' to download." || continue
+            || __bag_error "Does not support '${bag_url%%:*}' to download." || continue
         ! __bag_has_bag "$bag" \
-            || __bag_warn "Already exist bag: $bag" || continue
+            || __bag_error "Already exist bag: $bag" || continue
 
         __bag_printc yellow "Installing $bag_url..."
         "${BAG_DOWNLOADER[${bag_url%%:*}]}" install "$bag_url" \
             && echo "$bag_url" >>"$BAG_BASE_DIR/bags" \
-            || __bag_warn "Failed to install $bag_url"
+            || __bag_error "Failed to install $bag_url"
     done
 }
 
@@ -248,20 +250,20 @@ bag_update() {
         local bag_old="$(sed -rn '/'"\\/$bag"'/p' "$BAG_BASE_DIR/bags" 2>/dev/null)"
 
         __bag_has_downloader "${bag_old%%:*}" \
-            || __bag_warn "Does not support '${bag_old%%:*}' to download." || continue
+            || __bag_error "Does not support '${bag_old%%:*}' to download." || continue
         [[ $bag_old =~ ${bag_url%%/} ]] && __bag_has_bag "$bag" \
-            || __bag_warn "No such bag: $bag_url" || continue
+            || __bag_error "No such bag: $bag_url" || continue
 
         __bag_printc yellow "Updating $bag_old..."
         "${BAG_DOWNLOADER[${bag_old%%:*}]}" update "$bag_old" \
-            || __bag_warn "Failed to update $bag_old"
+            || __bag_error "Failed to update $bag_old"
     done
 }
 
 bag_uninstall() {
     for bag_url in "$@"; do
         local bag="$(__bag_get_bag_name "$bag_url")"
-        __bag_has_bag "$bag" || __bag_warn "No such bag: $bag" || continue
+        __bag_has_bag "$bag" || __bag_error "No such bag: $bag" || continue
         __bag_printc yellow "Uninstall $bag..."
         rm -rf "$BAG_BASE_DIR/$bag" && sed -ri '/'"\\/$bag"'$/d' "$BAG_BASE_DIR/bags"
     done
@@ -287,17 +289,17 @@ EOF
 
     case $prx_opt in
         add)
-            [[ -n $prx_cmd ]] || __bag_warn "Need a specific cmd, usage: bag proxy add <cmd>" || return 1
+            [[ -n $prx_cmd ]] || __bag_error "Need a specific cmd, usage: bag proxy add <cmd>" || return 1
             echo "$prx_cmd" >>"$BAG_BASE_DIR/proxy" \
             && __bag_printc green "Added proxy: ${prx_cmd@Q}" \
-            || __bag_warn "Failed to add proxy: ${prx_cmd@Q}" ;;
+            || __bag_error "Failed to add proxy: ${prx_cmd@Q}" ;;
         del)
             local IFS=,
-            [[ -n $prx_cmd ]] || __bag_warn "Need a cmd pattern, usage: bag proxy del <cmd-pat>" || return 1
+            [[ -n $prx_cmd ]] || __bag_error "Need a cmd pattern, usage: bag proxy del <cmd-pat>" || return 1
             mapfile -t found <<<"$(sed -rn  "/${prx_cmd//\//\\\/}/p" "$BAG_BASE_DIR/proxy")"
             sed -ri "/${prx_cmd//\//\\\/}/d" "$BAG_BASE_DIR/proxy" \
             && __bag_printc green "Deleted proxy: ${found[*]@Q}" \
-            || __bag_warn "Failed to del proxy: ${found[*]@Q}"
+            || __bag_error "Failed to del proxy: ${found[*]@Q}"
             unset found ;;
         run)
             mapfile -t cmds <"$BAG_BASE_DIR/proxy"
@@ -310,13 +312,13 @@ EOF
             fi
             for cmd in "${cmds[@]}"; do
                 __bag_printc yellow "Running ${cmd@Q}..."
-                (bash -c "$cmd")
+                (eval "eval ${cmd@Q}")
             done
             unset cmds ;;
         edit)  "${EDITOR:-vim}" "$BAG_BASE_DIR/proxy" ;;
         list) cat "$BAG_BASE_DIR/proxy" ;;
         help) echo "$prx_help" ;;
-        *) __bag_warn "No such option: ${prx_opt@Q}" ;;
+        *) __bag_error "No such option: ${prx_opt@Q}" ;;
     esac
 }
 
@@ -338,6 +340,7 @@ __bag_init_subcmd() {
     BAG_SUBCMDS_HELP[uninstall]="uninstall a bag"
     BAG_SUBCMDS_HELP[update]="update a bag"
     BAG_SUBCMDS_HELP[list]="list installed bags"
+    BAG_SUBCMDS_HELP[edit]="edit bags list"
     BAG_SUBCMDS_HELP[proxy]="proxy an package or repo operation cmd"
 
     declare -gA BAG_SUBCMDS
@@ -362,7 +365,7 @@ bag_init() {
 bag() {
     local cmd="$1"; shift
     __bag_has_cmd "$cmd" \
-        || { __bag_warn "No such command: '$cmd'"; "${BAG_SUBCMDS[help]}"; return 1; }
+        || { __bag_error "No such command: '$cmd'"; "${BAG_SUBCMDS[help]}"; return 1; }
     "${BAG_SUBCMDS[$cmd]}" "$@"
 }
 
