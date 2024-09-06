@@ -104,7 +104,25 @@ __bag_get_bag_name() {
 __bag_has_bag() { [[ -n $1 && -d $BAG_BASE_DIR/$1 ]]; }
 
 bag_version() { echo "$BAG_VERSION"; }
-bag_help() { echo "$BAG_HELP"; }
+bag_help() {
+    cat <<EOF
+$BAG_PRONAME $BAG_VERSION
+$BAG_PRONAME <subcmd> [somthing]
+
+subcmds:
+$(__bag_helper BAG_SUBCMDS_HELP)
+
+downloaders:
+$(__bag_helper BAG_DOWNLOADER_HELP)
+
+bag proxy usage:
+
+$(bag proxy help)
+
+This program is released under the terms of MIT License.
+Get more infomation from <$BAG_URL>.
+EOF
+}
 bag_base() { [[ -n $1 ]] && __bag_is_local_repo "$1" && BAG_BASE_DIR="$1"; }
 bag_plug() { [[ -n $1 ]] && BAG_PLUGINS+=("$1"); }
 bag_list() { [[ -f $BAG_BASE_DIR/bags ]] && cat "$BAG_BASE_DIR/bags"; }
@@ -158,6 +176,9 @@ bag_downloader_github() {
         *) __bag_warn "No such option: $bag_opt" ;;
     esac
 }
+bag_downloader_gh() {
+    bag_downloader_github "$@"
+}
 bag_downloader_local() {
     local bag_opt="$1"
     local bag_url="${2#*:}"
@@ -168,6 +189,9 @@ bag_downloader_local() {
         update) cp -r "$bag_url" "$BAG_BASE_DIR/$bag" ;;
         *) __bag_warn "No such option: $bag_opt" ;;
     esac
+}
+bag_downloader_file() {
+    bag_downloader_local "$@"
 }
 bag_downloader_link() {
     local bag_opt="$1"
@@ -181,20 +205,25 @@ bag_downloader_link() {
     esac
 }
 __bag_init_downloader() {
+    declare -gA BAG_DOWNLOADER_HELP
+    BAG_DOWNLOADER_HELP[git]="downloader for git repo"
+    BAG_DOWNLOADER_HELP[github]="downloader for github repo"
+    BAG_DOWNLOADER_HELP[gh]="alias for github downloader"
+    BAG_DOWNLOADER_HELP[local]="downloader for local file or directory"
+    BAG_DOWNLOADER_HELP[file]="alias for local downloader"
+    BAG_DOWNLOADER_HELP[link]="downloader for local file or directory as symbolic link"
+
     declare -gA BAG_DOWNLOADER
-    BAG_DOWNLOADER[git]="bag_downloader_git"
-    BAG_DOWNLOADER[github]="bag_downloader_github"
-    BAG_DOWNLOADER[gh]="bag_downloader_github"
-    BAG_DOWNLOADER[file]="bag_downloader_local"
-    BAG_DOWNLOADER[local]="bag_downloader_local"
-    BAG_DOWNLOADER[link]="bag_downloader_link"
+    for type in "${!BAG_DOWNLOADER_HELP[@]}"; do
+        BAG_DOWNLOADER[$type]="bag_downloader_$type"
+    done
 }
 __bag_has_downloader() { __bag_has_mapfunc BAG_DOWNLOADER "$1"; }
 
 bag_install() {
     local -a bags=("$@")
     [[ ${#bags[@]} -eq 0 ]] && bags=("${BAG_PLUGINS[@]}")
-    [[ -d $BAG_BASE_DIR ]] || mkdir "$BAG_BASE_DIR"
+    [[ -d $BAG_BASE_DIR ]] || mkdir -p "$BAG_BASE_DIR"
     for bag_url in "${bags[@]}"; do
         bag_url="${bag_url%%+(/)}"
         local bag="$(__bag_get_bag_name "${bag_url##*:}")"
@@ -238,11 +267,64 @@ bag_uninstall() {
     done
 }
 
-__bag_subcmds_help() {
-    local -n __subcmds="$1"
-    local -a sorted=($(echo "${!__subcmds[@]}" | sed -r 's/\s+/\n/g' | sort))
-    for cmd in "${sorted[@]}"; do
-        printf '    %-10s %s\n' "$cmd" "${__subcmds[$cmd]}"
+bag_proxy() {
+    local prx_opt="$1"
+    local prx_cmd="$2"
+    local prx_help="$(cat <<EOF
+bag proxy <action> [args..]
+
+actions:
+    add <cmd>       add a proxy cmd, need to be quoted
+    del <cmd-pat>   delete a proxy cmd, need to be quoted
+    run [cmd-pat]   run all or a pattern matched proxy cmd
+    edit            edit the proxy file
+    list            list all added proxy cmd
+    help            print the bag proxy help message like this
+EOF
+)"
+
+    [[ -f $BAG_BASE_DIR/proxy ]] || { mkdir -p "$BAG_BASE_DIR" && touch "$BAG_BASE_DIR/proxy"; }
+
+    case $prx_opt in
+        add)
+            [[ -n $prx_cmd ]] || __bag_warn "Need a specific cmd, usage: bag proxy add <cmd>" || return 1
+            echo "$prx_cmd" >>"$BAG_BASE_DIR/proxy" \
+            && __bag_printc green "Added proxy: ${prx_cmd@Q}" \
+            || __bag_warn "Failed to add proxy: ${prx_cmd@Q}" ;;
+        del)
+            local IFS=,
+            [[ -n $prx_cmd ]] || __bag_warn "Need a cmd pattern, usage: bag proxy del <cmd-pat>" || return 1
+            mapfile -t found <<<"$(sed -rn  "/${prx_cmd//\//\\\/}/p" "$BAG_BASE_DIR/proxy")"
+            sed -ri "/${prx_cmd//\//\\\/}/d" "$BAG_BASE_DIR/proxy" \
+            && __bag_printc green "Deleted proxy: ${found[*]@Q}" \
+            || __bag_warn "Failed to del proxy: ${found[*]@Q}"
+            unset found ;;
+        run)
+            mapfile -t cmds <"$BAG_BASE_DIR/proxy"
+            if [[ -n $prx_cmd ]]; then
+                local -a matched=()
+                for cmd in "${cmds[@]}"; do
+                    [[ $cmd =~ $prx_cmd ]] && matched+=("$cmd")
+                done
+                cmds=("${matched[@]}")
+            fi
+            for cmd in "${cmds[@]}"; do
+                __bag_printc yellow "Running ${cmd@Q}..."
+                (bash -c "$cmd")
+            done
+            unset cmds ;;
+        edit)  "${EDITOR:-vim}" "$BAG_BASE_DIR/proxy" ;;
+        list) cat "$BAG_BASE_DIR/proxy" ;;
+        help) echo "$prx_help" ;;
+        *) __bag_warn "No such option: ${prx_opt@Q}" ;;
+    esac
+}
+
+__bag_helper() {
+    local -n help_array="$1"
+    local -a sorted=($(echo "${!help_array[@]}" | sed -r 's/\s+/\n/g' | sort))
+    for type in "${sorted[@]}"; do
+        printf '    %-10s %s\n' "$type" "${help_array[$type]}"
     done
 }
 __bag_init_subcmd() {
@@ -256,6 +338,7 @@ __bag_init_subcmd() {
     BAG_SUBCMDS_HELP[uninstall]="uninstall a bag"
     BAG_SUBCMDS_HELP[update]="update a bag"
     BAG_SUBCMDS_HELP[list]="list installed bags"
+    BAG_SUBCMDS_HELP[proxy]="proxy an package or repo operation cmd"
 
     declare -gA BAG_SUBCMDS
     for cmd in "${!BAG_SUBCMDS_HELP[@]}"; do
@@ -265,28 +348,16 @@ __bag_init_subcmd() {
 
 bag_init() {
     declare -g  BAG_AUTHOR=ishbguy
-    declare -g  BAG_PRONAME=bag
+    declare -g  BAG_PRONAME="$(basename "${BAG_ABS_SRC}" .sh)"
     declare -g  BAG_VERSION='v1.0.0'
     declare -g  BAG_URL='https://github.com/ishbguy/bag'
-    declare -g  BAG_BASE_DIR="$HOME/.$BAG_PRONAME"
-    declare -g  BAG_CONFIG="$HOME/.${BAG_PRONAME}rc"
-    declare -ga BAG_PLUGINS
+    declare -g  BAG_BASE_DIR="${BAG_BASE_DIR:-$HOME/.$BAG_PRONAME}"
+    declare -g  BAG_CONFIG="${BAG_CONFIG:-$HOME/.${BAG_PRONAME}rc}"
+    declare -ga BAG_PLUGINS=()
 
     __bag_init_color
     __bag_init_subcmd
     __bag_init_downloader
-
-    declare -g  BAG_HELP=$(cat <<EOF
-$BAG_PRONAME $BAG_VERSION
-$BAG_PRONAME <subcmd> [somthing]
-
-subcmds:
-$(__bag_subcmds_help BAG_SUBCMDS_HELP)
-
-This program is released under the terms of MIT License.
-Get more infomation from <$BAG_URL>.
-EOF
-)
 }
 bag() {
     local cmd="$1"; shift
