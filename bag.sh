@@ -303,13 +303,7 @@ EOF
             unset found ;;
         run)
             mapfile -t cmds <"$BAG_BASE_DIR/proxy"
-            if [[ -n $prx_cmd ]]; then
-                local -a matched=()
-                for cmd in "${cmds[@]}"; do
-                    [[ $cmd =~ $prx_cmd ]] && matched+=("$cmd")
-                done
-                cmds=("${matched[@]}")
-            fi
+            [[ -n $prx_cmd ]] && mapfile -t cmds < <(grep -iE "$prx_cmd" "$BAG_BASE_DIR/proxy")
             for cmd in "${cmds[@]}"; do
                 __bag_printc yellow "Running ${cmd@Q}..."
                 (eval "eval ${cmd@Q}")
