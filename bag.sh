@@ -61,21 +61,25 @@ __bag_printc() {
     local color=default
     local format
     if __bag_has_map BAG_ANSI_COLOR "$1"; then
-        color="$1"; shift;
-        __bag_has_map BAG_ANSI_COLOR "$1" && { format="$1"; shift; }
+        color="$1"
+        shift
+        __bag_has_map BAG_ANSI_COLOR "$1" && {
+            format="$1"
+            shift
+        }
     fi
     __bag_set_color "$color" "$format"
     echo -e "$@"
     __bag_set_color reset
 }
 
-__bag_warn() { __bag_printc yellow "$@" >&2; return 1; }
-__bag_error() { __bag_printc red "$@" >&2; return 1; }
+__bag_warn() { __bag_printc yellow "$@" >&2 && return 1; }
+__bag_error() { __bag_printc red "$@" >&2 && return 1; }
 __bag_is_local_repo() { [[ $1 =~ ^/([[:alnum:]_/.-]+)*$ ]]; }
 __bag_is_remote_repo() { [[ $1 =~ ^[[:alnum:]_-][[:alnum:]_-.]*/[[:alnum:]_-.]+$ ]]; }
 __bag_is_repo() { __bag_is_local_repo "$1" || __bag_is_remote_repo "$1"; }
-__bag_defined() { declare -p "$1" &>/dev/null; }
-__bag_defined_func() { declare -f "$1" &>/dev/null; }
+__bag_defined() { declare -p "$1" &> /dev/null; }
+__bag_defined_func() { declare -f "$1" &> /dev/null; }
 __bag_encode_name() { echo "${1//[^[:alnum:]]/_}"; }
 __bag_trim_space() {
     local str="$1"
@@ -83,7 +87,7 @@ __bag_trim_space() {
     str="${str##+( )}"
     echo "$str"
 }
-__bag_has_map() { local -n map="$1"; shift; [[ -n $1 && -n ${map[$1]} ]]; }
+__bag_has_map() { local -n map="$1" && shift && [[ -n $1 && -n ${map[$1]} ]]; }
 __bag_has_mapfunc() {
     local -n map="$1"
     __bag_has_map "$@" && __bag_defined_func "${map[$2]}"
@@ -91,7 +95,7 @@ __bag_has_mapfunc() {
 __bag_require() {
     local -a missed=()
     for req in "$@"; do
-        hash "$req" &>/dev/null || missed+=("$req")
+        hash "$req" &> /dev/null || missed+=("$req")
     done
     local IFS=,
     [[ ${#missed[@]} -eq 0 ]] || __bag_error "bag needs: ${missed[*]}." || return 1
@@ -106,7 +110,7 @@ __bag_has_bag() { [[ -n $1 && -d $BAG_BASE_DIR/$1 ]]; }
 
 bag_version() { echo "$BAG_VERSION"; }
 bag_help() {
-    cat <<EOF
+    cat << EOF
 $BAG_PRONAME $BAG_VERSION
 $BAG_PRONAME <subcmd> [somthing]
 
@@ -127,7 +131,7 @@ EOF
 bag_base() { [[ -n $1 ]] && __bag_is_local_repo "$1" && BAG_BASE_DIR="$1"; }
 bag_plug() { [[ -n $1 ]] && BAG_PLUGINS+=("$1"); }
 bag_list() { [[ -f $BAG_BASE_DIR/bags ]] && cat "$BAG_BASE_DIR/bags"; }
-bag_edit() { [[ -f $BAG_BASE_DIR/bags ]] &&  "${EDITOR:-vim}" "$BAG_BASE_DIR/bags"; }
+bag_edit() { [[ -f $BAG_BASE_DIR/bags ]] && "${EDITOR:-vim}" "$BAG_BASE_DIR/bags"; }
 
 __bag_update_path() {
     local -a bags=($(bag list))
@@ -232,12 +236,11 @@ bag_install() {
 
         __bag_has_downloader "${bag_url%%:*}" \
             || __bag_error "Does not support '${bag_url%%:*}' to download." || continue
-        ! __bag_has_bag "$bag" \
-            || __bag_error "Already exist bag: $bag" || continue
+        ! __bag_has_bag "$bag" || __bag_error "Already exist bag: $bag" || continue
 
         __bag_printc yellow "Installing $bag_url..."
         "${BAG_DOWNLOADER[${bag_url%%:*}]}" install "$bag_url" \
-            && echo "$bag_url" >>"$BAG_BASE_DIR/bags" \
+            && echo "$bag_url" >> "$BAG_BASE_DIR/bags" \
             || __bag_error "Failed to install $bag_url"
     done
 }
@@ -247,7 +250,7 @@ bag_update() {
     [[ ${#bags[@]} -eq 0 ]] && bags=($(bag list))
     for bag_url in "${bags[@]}"; do
         local bag="$(__bag_get_bag_name "${bag_url##*:}")"
-        local bag_old="$(sed -rn '/'"\\/$bag"'/p' "$BAG_BASE_DIR/bags" 2>/dev/null)"
+        local bag_old="$(sed -rn '/'"\\/$bag"'/p' "$BAG_BASE_DIR/bags" 2> /dev/null)"
 
         __bag_has_downloader "${bag_old%%:*}" \
             || __bag_error "Does not support '${bag_old%%:*}' to download." || continue
@@ -272,7 +275,8 @@ bag_uninstall() {
 bag_proxy() {
     local prx_opt="$1"
     local prx_cmd="$2"
-    local prx_help="$(cat <<EOF
+    local prx_help="$(
+        cat << EOF
 bag proxy <action> [args..]
 
 actions:
@@ -283,33 +287,36 @@ actions:
     list            list all added proxy cmd
     help            print the bag proxy help message like this
 EOF
-)"
+    )"
 
     [[ -f $BAG_BASE_DIR/proxy ]] || { mkdir -p "$BAG_BASE_DIR" && touch "$BAG_BASE_DIR/proxy"; }
 
     case $prx_opt in
         add)
             [[ -n $prx_cmd ]] || __bag_error "Need a specific cmd, usage: bag proxy add <cmd>" || return 1
-            echo "$prx_cmd" >>"$BAG_BASE_DIR/proxy" \
-            && __bag_printc green "Added proxy: ${prx_cmd@Q}" \
-            || __bag_error "Failed to add proxy: ${prx_cmd@Q}" ;;
+            echo "$prx_cmd" >> "$BAG_BASE_DIR/proxy" \
+                && __bag_printc green "Added proxy: ${prx_cmd@Q}" \
+                || __bag_error "Failed to add proxy: ${prx_cmd@Q}"
+            ;;
         del)
             local IFS=,
             [[ -n $prx_cmd ]] || __bag_error "Need a cmd pattern, usage: bag proxy del <cmd-pat>" || return 1
-            mapfile -t found <<<"$(sed -rn  "/${prx_cmd//\//\\\/}/p" "$BAG_BASE_DIR/proxy")"
+            mapfile -t found <<< "$(sed -rn "/${prx_cmd//\//\\\/}/p" "$BAG_BASE_DIR/proxy")"
             sed -ri "/${prx_cmd//\//\\\/}/d" "$BAG_BASE_DIR/proxy" \
-            && __bag_printc green "Deleted proxy: ${found[*]@Q}" \
-            || __bag_error "Failed to del proxy: ${found[*]@Q}"
-            unset found ;;
+                && __bag_printc green "Deleted proxy: ${found[*]@Q}" \
+                || __bag_error "Failed to del proxy: ${found[*]@Q}"
+            unset found
+            ;;
         run)
-            mapfile -t cmds <"$BAG_BASE_DIR/proxy"
+            mapfile -t cmds < "$BAG_BASE_DIR/proxy"
             [[ -n $prx_cmd ]] && mapfile -t cmds < <(grep -iE "$prx_cmd" "$BAG_BASE_DIR/proxy")
             for cmd in "${cmds[@]}"; do
                 __bag_printc yellow "Running ${cmd@Q}..."
                 (eval "eval ${cmd@Q}")
             done
-            unset cmds ;;
-        edit)  "${EDITOR:-vim}" "$BAG_BASE_DIR/proxy" ;;
+            unset cmds
+            ;;
+        edit) "${EDITOR:-vim}" "$BAG_BASE_DIR/proxy" ;;
         list) cat "$BAG_BASE_DIR/proxy" ;;
         help) echo "$prx_help" ;;
         *) __bag_error "No such option: ${prx_opt@Q}" ;;
@@ -344,12 +351,12 @@ __bag_init_subcmd() {
 }
 
 bag_init() {
-    declare -g  BAG_AUTHOR=ishbguy
-    declare -g  BAG_PRONAME="$(basename "${BAG_ABS_SRC}" .sh)"
-    declare -g  BAG_VERSION='v1.0.0'
-    declare -g  BAG_URL='https://github.com/ishbguy/bag'
-    declare -g  BAG_BASE_DIR="${BAG_BASE_DIR:-$HOME/.$BAG_PRONAME}"
-    declare -g  BAG_CONFIG="${BAG_CONFIG:-$HOME/.${BAG_PRONAME}rc}"
+    declare -g BAG_AUTHOR=ishbguy
+    declare -g BAG_PRONAME="$(basename "${BAG_ABS_SRC}" .sh)"
+    declare -g BAG_VERSION='v1.0.0'
+    declare -g BAG_URL='https://github.com/ishbguy/bag'
+    declare -g BAG_BASE_DIR="${BAG_BASE_DIR:-$HOME/.$BAG_PRONAME}"
+    declare -g BAG_CONFIG="${BAG_CONFIG:-$HOME/.${BAG_PRONAME}rc}"
     declare -ga BAG_PLUGINS=()
 
     __bag_init_color
@@ -357,9 +364,12 @@ bag_init() {
     __bag_init_downloader
 }
 bag() {
-    local cmd="$1"; shift
-    __bag_has_cmd "$cmd" \
-        || { __bag_error "No such command: '$cmd'"; "${BAG_SUBCMDS[help]}"; return 1; }
+    local cmd="$1" && shift
+    if ! __bag_has_cmd "$cmd"; then
+        __bag_error "No such command: '$cmd'"
+        "${BAG_SUBCMDS[help]}"
+        return 1
+    fi
     "${BAG_SUBCMDS[$cmd]}" "$@"
 }
 
