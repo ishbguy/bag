@@ -247,20 +247,20 @@ bag_install() {
 }
 
 bag_update() {
-    local -a bags=("$@")
-    [[ ${#bags[@]} -eq 0 ]] && bags=($(bag list))
-    for bag_url in "${bags[@]}"; do
-        local bag="$(__bag_get_bag_name "${bag_url##*:}")"
-        local bag_old="$(sed -rn '/'"\\/$bag"'/p' "$BAG_BASE_DIR/bags" 2> /dev/null)"
+    local -a bag_pats=("$@") bags=()
+    [[ ${#bag_pats[@]} -eq 0 ]] && bag_pats=($(bag list))
+    for bag_url in "${bag_pats[@]}"; do
+        mapfile -t bags < <(grep -iE "$bag_url" "$BAG_BASE_DIR/bags")
+        for bag in "${bags[@]}"; do
+            local bag_name="$(__bag_get_bag_name "${bag##*:}")"
 
-        __bag_has_downloader "${bag_old%%:*}" \
-            || __bag_error "Does not support '${bag_old%%:*}' to download." || continue
-        [[ $bag_old =~ ${bag_url%%/} ]] && __bag_has_bag "$bag" \
-            || __bag_error "No such bag: $bag_url" || continue
+            __bag_has_downloader "${bag%%:*}" \
+                || __bag_error "Does not support '${bag%%:*}' to download." || continue
+            __bag_has_bag "$bag_name" || __bag_error "No such bag: $bag_url" || continue
 
-        __bag_printc yellow "Updating $bag_old..."
-        "${BAG_DOWNLOADER[${bag_old%%:*}]}" update "$bag_old" \
-            || __bag_error "Failed to update $bag_old"
+            __bag_printc yellow "Updating $bag..."
+            "${BAG_DOWNLOADER[${bag%%:*}]}" update "$bag" || __bag_error "Failed to update $bag"
+        done
     done
 }
 
