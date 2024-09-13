@@ -49,6 +49,8 @@ The only action you need to do is to add below instruction in your bash config f
 [[ -f /path/to/bag.sh ]] && source /path/to/bag.sh
 ```
 
+After login `bash`, you can use `bag` command to manage packges and plugins. `bag help` will print usage.
+
 ```
 bag v1.0.0
 bag <subcmd> [somthing]
@@ -90,8 +92,6 @@ actions:
 This program is released under the terms of MIT License.
 Get more infomation from <https://github.com/ishbguy/bag>.
 ```
-
-After login `bash`, you can use `bag` command to manage packges and plugins.
 
 ## :memo: Configuration
 
