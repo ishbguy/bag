@@ -49,6 +49,48 @@ The only action you need to do is to add below instruction in your bash config f
 [[ -f /path/to/bag.sh ]] && source /path/to/bag.sh
 ```
 
+```
+bag v1.0.0
+bag <subcmd> [somthing]
+
+subcmds:
+    base       change bags' download directory
+    edit       edit bag list
+    help       show help message, like this output
+    install    install a bag
+    link       add an existed package or repo by symbolic link
+    list       list installed bags
+    load       load all plugins and update PATH
+    plug       add a bag plugin
+    proxy      proxy an package or repo operation cmd
+    uninstall  uninstall a bag
+    update     update a bag
+    version    show version number
+
+downloaders:
+    file       alias for local downloader
+    gh         alias for github downloader
+    git        downloader for git repo
+    github     downloader for github repo
+    link       downloader for local file or directory as symbolic link
+    local      downloader for local file or directory
+
+bag proxy usage:
+
+bag proxy <action> [args..]
+
+actions:
+    add <cmd>       add a proxy cmd, need to be quoted
+    del <cmd-pat>   delete a proxy cmd, need to be quoted
+    run [cmd-pat]   run all or a pattern matched proxy cmd
+    edit            edit the proxy file
+    list            list all added proxy cmd
+    help            print the bag proxy help message like this
+
+This program is released under the terms of MIT License.
+Get more infomation from <https://github.com/ishbguy/bag>.
+```
+
 After login `bash`, you can use `bag` command to manage packges and plugins.
 
 ## :memo: Configuration
