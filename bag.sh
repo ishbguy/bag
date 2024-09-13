@@ -118,6 +118,9 @@ $BAG_PRONAME <subcmd> [somthing]
 subcmds:
 $(__bag_helper BAG_SUBCMDS_HELP)
 
+<dl:url> like 'gh:ishbguy/bag' means that it will install or update bag
+from $BAG_URL by github downloader.
+
 downloaders:
 $(__bag_helper BAG_DOWNLOADER_HELP)
 
@@ -339,23 +342,28 @@ __bag_helper() {
     local -n help_array="$1"
     local -a sorted=($(echo "${!help_array[@]}" | sed -r 's/\s+/\n/g' | sort))
     for type in "${sorted[@]}"; do
-        printf '    %-10s %s\n' "$type" "${help_array[$type]}"
+        local arg="" msg="${help_array[$type]}"
+        if [[ ${help_array[$type]} =~ @ ]]; then
+            arg="${help_array[$type]%%@*}"
+            msg="${help_array[$type]##*@}"
+        fi
+        printf '    %-10s %-15s %s\n' "$type" "$arg" "$msg"
     done
 }
 __bag_init_subcmd() {
     declare -gA BAG_SUBCMDS_HELP
     BAG_SUBCMDS_HELP[help]="show help message, like this output"
     BAG_SUBCMDS_HELP[version]="show version number"
-    BAG_SUBCMDS_HELP[base]="change bags' download directory"
-    BAG_SUBCMDS_HELP[plug]="add a bag plugin"
+    BAG_SUBCMDS_HELP[base]="<path>@change bags' download directory"
+    BAG_SUBCMDS_HELP[plug]="<dl:url>@add a bag plugin"
     BAG_SUBCMDS_HELP[load]="load all plugins and update PATH"
-    BAG_SUBCMDS_HELP[install]="install a bag"
-    BAG_SUBCMDS_HELP[uninstall]="uninstall a bag"
-    BAG_SUBCMDS_HELP[update]="update a bag"
+    BAG_SUBCMDS_HELP[install]="[dl:url]@install a bag"
+    BAG_SUBCMDS_HELP[uninstall]="<dl:url>@uninstall a bag"
+    BAG_SUBCMDS_HELP[update]="[pat]@update one or more bags"
     BAG_SUBCMDS_HELP[list]="list installed bags"
     BAG_SUBCMDS_HELP[edit]="edit bag list"
     BAG_SUBCMDS_HELP[proxy]="proxy an package or repo operation cmd"
-    BAG_SUBCMDS_HELP[link]="add an existed package or repo by symbolic link"
+    BAG_SUBCMDS_HELP[link]="<path> <dl:url>@add an existed package or repo by symbolic link"
 
     declare -gA BAG_SUBCMDS
     for cmd in "${!BAG_SUBCMDS_HELP[@]}"; do

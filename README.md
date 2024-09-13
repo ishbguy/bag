@@ -56,26 +56,29 @@ bag v1.0.0
 bag <subcmd> [somthing]
 
 subcmds:
-    base       change bags' download directory
-    edit       edit bag list
-    help       show help message, like this output
-    install    install a bag
-    link       add an existed package or repo by symbolic link
-    list       list installed bags
-    load       load all plugins and update PATH
-    plug       add a bag plugin
-    proxy      proxy an package or repo operation cmd
-    uninstall  uninstall a bag
-    update     update a bag
-    version    show version number
+    base       <path>          change bags' download directory
+    edit                       edit bag list
+    help                       show help message, like this output
+    install    [dl:url]        install a bag
+    link       <path> <dl:url> add an existed package or repo by symbolic link
+    list                       list installed bags
+    load                       load all plugins and update PATH
+    plug       <dl:url>        add a bag plugin
+    proxy                      proxy an package or repo operation cmd
+    uninstall  <dl:url>        uninstall a bag
+    update     [pat]           update one or more bags
+    version                    show version number
+
+<dl:url> like 'gh:ishbguy/bag' means that it will install or update bag
+from https://github.com/ishbguy/bag by github downloader.
 
 downloaders:
-    file       alias for local downloader
-    gh         alias for github downloader
-    git        downloader for git repo
-    github     downloader for github repo
-    link       downloader for local file or directory as symbolic link
-    local      downloader for local file or directory
+    file                       alias for local downloader
+    gh                         alias for github downloader
+    git                        downloader for git repo
+    github                     downloader for github repo
+    link                       downloader for local file or directory as symbolic link
+    local                      downloader for local file or directory
 
 bag proxy usage:
 
@@ -93,7 +96,28 @@ This program is released under the terms of MIT License.
 Get more infomation from <https://github.com/ishbguy/bag>.
 ```
 
+### Examples
+
+1. Using bag like other package management tools:
+
+```bash
+bag install gh:ishbguy/bag
+bag update gh:ihsbguy/bag
+bag uninstall gh:ishbguy/bag
+```
+
+2. Using bag as a plugin management tool, you need to add instructions to `~/.bashrc` or `~/.bash_profile`:
+
+```bash
+bag base $HOME/.bags
+bag plug gh:ishbguy/bag
+bag install
+bag load
+```
+
 ## :memo: Configuration
+
+The default `BAG_BASE_DIR` is `$HOME/.bags`, you can change it by `bag base <dir-path>` or `export BAG_BASE_DIR=$DIR_PATH`.
 
 ## :hibiscus: Contributing
 
