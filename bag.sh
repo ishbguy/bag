@@ -73,6 +73,7 @@ __bag_printc() {
     __bag_set_color reset
 }
 
+__bag_ok() { __bag_printc green "$@"; }
 __bag_warn() { __bag_printc yellow "$@" >&2 && return 1; }
 __bag_error() { __bag_printc red "$@" >&2 && return 1; }
 __bag_is_local_repo() { [[ -d $1 ]]; }
@@ -295,7 +296,7 @@ EOF
         add)
             [[ -n $prx_cmd ]] || __bag_error "Need a specific cmd, usage: bag proxy add <cmd>" || return 1
             echo "$prx_cmd" >> "$BAG_BASE_DIR/proxy" \
-                && __bag_printc green "Added proxy: ${prx_cmd@Q}" \
+                && __bag_ok "Added proxy: ${prx_cmd@Q}" \
                 || __bag_error "Failed to add proxy: ${prx_cmd@Q}"
             ;;
         del)
@@ -303,7 +304,7 @@ EOF
             [[ -n $prx_cmd ]] || __bag_error "Need a cmd pattern, usage: bag proxy del <cmd-pat>" || return 1
             mapfile -t found <<< "$(sed -rn "/${prx_cmd//\//\\\/}/p" "$BAG_BASE_DIR/proxy")"
             sed -ri "/${prx_cmd//\//\\\/}/d" "$BAG_BASE_DIR/proxy" \
-                && __bag_printc green "Deleted proxy: ${found[*]@Q}" \
+                && __bag_ok "Deleted proxy: ${found[*]@Q}" \
                 || __bag_error "Failed to del proxy: ${found[*]@Q}"
             unset found
             ;;
@@ -327,7 +328,8 @@ bag_link() {
     path="$(readlink -f "$path" 2> /dev/null)"
     if __bag_is_local_repo "$path" && __bag_is_remote_repo "$url"; then
         bag_name="$(__bag_get_bag_name "$url")"
-        ln -s "$path" "$BAG_BASE_DIR/$bag_name" && echo "$url" >> "$BAG_BASE_DIR/bags"
+        ln -s "$path" "$BAG_BASE_DIR/$bag_name" && echo "$url" >> "$BAG_BASE_DIR/bags" \
+            && __bag_ok "Added link to bag list: ${path@Q}"
     else
         __bag_error "No such path or invalid url: ${path@Q}, ${url@Q}\nbag link <path> <url>"
     fi
