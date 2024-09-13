@@ -5,7 +5,7 @@
 # source guard
 [[ $BAG_SOURCED -eq 1 ]] && return
 declare -gr BAG_SOURCED=1
-declare -gr BAG_ABS_SRC="$(realpath "${BASH_SOURCE[0]}")"
+declare -gr BAG_ABS_SRC="$(readlink -f "${BASH_SOURCE[0]}")"
 declare -gr BAG_ABS_DIR="$(dirname "$BAG_ABS_SRC")"
 
 shopt -s extglob
@@ -75,8 +75,8 @@ __bag_printc() {
 
 __bag_warn() { __bag_printc yellow "$@" >&2 && return 1; }
 __bag_error() { __bag_printc red "$@" >&2 && return 1; }
-__bag_is_local_repo() { [[ $1 =~ ^/([[:alnum:]_/.-]+)*$ ]]; }
-__bag_is_remote_repo() { [[ $1 =~ ^[[:alnum:]_-][[:alnum:]_-.]*/[[:alnum:]_-.]+$ ]]; }
+__bag_is_local_repo() { [[ -d $1 ]]; }
+__bag_is_remote_repo() { [[ $1 =~ ^[[:alnum:]_-][[:alnum:]._-]*:[[:alnum:]./_-]+$ ]]; }
 __bag_is_repo() { __bag_is_local_repo "$1" || __bag_is_remote_repo "$1"; }
 __bag_defined() { declare -p "$1" &> /dev/null; }
 __bag_defined_func() { declare -f "$1" &> /dev/null; }
@@ -322,6 +322,16 @@ EOF
         *) __bag_error "No such option: ${prx_opt@Q}" ;;
     esac
 }
+bag_link() {
+    local path=$1 url=$2 bag_name
+    path="$(readlink -f "$path" 2> /dev/null)"
+    if __bag_is_local_repo "$path" && __bag_is_remote_repo "$url"; then
+        bag_name="$(__bag_get_bag_name "$url")"
+        ln -s "$path" "$BAG_BASE_DIR/$bag_name" && echo "$url" >> "$BAG_BASE_DIR/bags"
+    else
+        __bag_error "No such path or invalid url: ${path@Q}, ${url@Q}\nbag link <path> <url>"
+    fi
+}
 
 __bag_helper() {
     local -n help_array="$1"
@@ -341,8 +351,9 @@ __bag_init_subcmd() {
     BAG_SUBCMDS_HELP[uninstall]="uninstall a bag"
     BAG_SUBCMDS_HELP[update]="update a bag"
     BAG_SUBCMDS_HELP[list]="list installed bags"
-    BAG_SUBCMDS_HELP[edit]="edit bags list"
+    BAG_SUBCMDS_HELP[edit]="edit bag list"
     BAG_SUBCMDS_HELP[proxy]="proxy an package or repo operation cmd"
+    BAG_SUBCMDS_HELP[link]="add an existed package or repo by symbolic link"
 
     declare -gA BAG_SUBCMDS
     for cmd in "${!BAG_SUBCMDS_HELP[@]}"; do

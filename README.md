@@ -29,7 +29,6 @@
 
 > + `bash` 4.2 or later
 > + `git`
-> + `realpath`
 
 ## :rocket: Installation
 
