@@ -66,6 +66,7 @@ subcmds:
     plug       <dl:url>        add a bag plugin
     proxy                      proxy an package or repo operation cmd
     uninstall  <dl:url>        uninstall a bag
+    unlink     <dl:url>        unlink a bag, just like uninstall
     update     [pat]           update one or more bags
     version                    show version number
 
@@ -98,7 +99,7 @@ Get more infomation from <https://github.com/ishbguy/bag>.
 
 ### Examples
 
-1. Using bag like other package management tools:
+1. Use bag like other package management tools:
 
 ```bash
 bag install gh:ishbguy/bag
@@ -106,13 +107,39 @@ bag update gh:ihsbguy/bag
 bag uninstall gh:ishbguy/bag
 ```
 
-2. Using bag as a plugin management tool, you need to add instructions to `~/.bashrc` or `~/.bash_profile`:
+2. Use bag as a plugin management tool, you need to add instructions to `~/.bashrc` or `~/.bash_profile`:
 
 ```bash
 bag base $HOME/.bags
 bag plug gh:ishbguy/bag
 bag install
 bag load
+```
+
+3. Define your own `bag_downloader_XXX`
+
+```bash
+# Define your own github downloader
+bag_downloader_github() {
+    __bag_require git
+
+    # get two args
+    local bag_opt="$1"
+    local bag_url="https://github.com/${2#*:}"
+
+    local bag=$(__bag_get_bag_name "$bag_url")
+
+    # implement the install and update operations
+    case $bag_opt in
+        install) git clone "$bag_url" "$BAG_BASE_DIR/$bag" ;;
+        update) (cd "$BAG_BASE_DIR/$bag" && git pull) ;;
+        *) __bag_error "No such option: $bag_opt" ;;
+    esac
+}
+
+# Write the help message, then install it
+BAG_DOWNLOADER_HELP[github]="downloader for github repo"
+BAG_DOWNLOADER[github]="bag_downloader_github"
 ```
 
 ## :memo: Configuration

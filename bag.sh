@@ -74,7 +74,8 @@ __bag_printc() {
 }
 
 __bag_ok() { __bag_printc green "$@"; }
-__bag_warn() { __bag_printc yellow "$@" >&2 && return 1; }
+__bag_info() { __bag_printc yellow "$@" ; }
+__bag_warn() { __bag_printc magenta "$@" >&2 && return 1; }
 __bag_error() { __bag_printc red "$@" >&2 && return 1; }
 __bag_is_local_repo() { [[ -d $1 ]]; }
 __bag_is_remote_repo() { [[ $1 =~ ^[[:alnum:]_-][[:alnum:]._-]*:[[:alnum:]./_-]+$ ]]; }
@@ -242,7 +243,7 @@ bag_install() {
             || __bag_error "Does not support '${bag_url%%:*}' to download." || continue
         ! __bag_has_bag "$bag" || __bag_error "Already exist bag: $bag" || continue
 
-        __bag_printc yellow "Installing $bag_url..."
+        __bag_info "Installing $bag_url..."
         "${BAG_DOWNLOADER[${bag_url%%:*}]}" install "$bag_url" \
             && echo "$bag_url" >> "$BAG_BASE_DIR/bags" \
             || __bag_error "Failed to install $bag_url"
@@ -261,7 +262,7 @@ bag_update() {
                 || __bag_error "Does not support '${bag%%:*}' to download." || continue
             __bag_has_bag "$bag_name" || __bag_error "No such bag: $bag_url" || continue
 
-            __bag_printc yellow "Updating $bag..."
+            __bag_info "Updating $bag..."
             "${BAG_DOWNLOADER[${bag%%:*}]}" update "$bag" || __bag_error "Failed to update $bag"
         done
     done
@@ -271,7 +272,7 @@ bag_uninstall() {
     for bag_url in "$@"; do
         local bag="$(__bag_get_bag_name "$bag_url")"
         __bag_has_bag "$bag" || __bag_error "No such bag: $bag" || continue
-        __bag_printc yellow "Uninstall $bag..."
+        __bag_info "Uninstall $bag..."
         rm -rf "$BAG_BASE_DIR/$bag" && sed -ri '/'"\\/$bag"'$/d' "$BAG_BASE_DIR/bags"
     done
 }
@@ -315,7 +316,7 @@ EOF
             mapfile -t cmds < "$BAG_BASE_DIR/proxy"
             [[ -n $prx_cmd ]] && mapfile -t cmds < <(grep -iE "$prx_cmd" "$BAG_BASE_DIR/proxy")
             for cmd in "${cmds[@]}"; do
-                __bag_printc yellow "Running ${cmd@Q}..."
+                __bag_info "Running ${cmd@Q}..."
                 (eval "eval ${cmd@Q}")
             done
             unset cmds
@@ -334,8 +335,11 @@ bag_link() {
         ln -s "$path" "$BAG_BASE_DIR/$bag_name" && echo "$url" >> "$BAG_BASE_DIR/bags" \
             && __bag_ok "Added link to bag list: ${path@Q}"
     else
-        __bag_error "No such path or invalid url: ${path@Q}, ${url@Q}\nbag link <path> <url>"
+        __bag_error "No such path or invalid url: ${path@Q}, ${url@Q}"
     fi
+}
+bag_unlink() {
+    bag_uninstall "$@"
 }
 
 __bag_helper() {
@@ -364,6 +368,7 @@ __bag_init_subcmd() {
     BAG_SUBCMDS_HELP[edit]="edit bag list"
     BAG_SUBCMDS_HELP[proxy]="proxy an package or repo operation cmd"
     BAG_SUBCMDS_HELP[link]="<path> <dl:url>@add an existed package or repo by symbolic link"
+    BAG_SUBCMDS_HELP[unlink]="<dl:url>@unlink a bag, just like uninstall"
 
     declare -gA BAG_SUBCMDS
     for cmd in "${!BAG_SUBCMDS_HELP[@]}"; do
