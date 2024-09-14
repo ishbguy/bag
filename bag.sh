@@ -100,7 +100,7 @@ __bag_require() {
         hash "$req" &> /dev/null || missed+=("$req")
     done
     local IFS=,
-    [[ ${#missed[@]} -eq 0 ]] || __bag_error "bag needs: ${missed[*]}." || return 1
+    [[ ${#missed[@]} -eq 0 ]] || __bag_error "bag needs: ${missed[*]}."
 }
 __bag_has_cmd() { __bag_has_mapfunc BAG_SUBCMDS "$1"; }
 __bag_get_bag_name() {
@@ -162,7 +162,7 @@ bag_load() {
 }
 
 bag_downloader_git() {
-    __bag_require git
+    __bag_require git || return 1
 
     local bag_opt="$1"
     local bag_url="${2#*:}"
@@ -175,7 +175,7 @@ bag_downloader_git() {
     esac
 }
 bag_downloader_github() {
-    __bag_require git
+    __bag_require git || return 1
 
     local bag_opt="$1"
     local bag_url="https://github.com/${2#*:}"

@@ -121,7 +121,7 @@ bag load
 ```bash
 # Define your own github downloader
 bag_downloader_github() {
-    __bag_require git
+    __bag_require git || return 1
 
     # get two args
     local bag_opt="$1"
