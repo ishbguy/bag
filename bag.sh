@@ -74,7 +74,7 @@ __bag_printc() {
 }
 
 __bag_ok() { __bag_printc green "$@"; }
-__bag_info() { __bag_printc yellow "$@" ; }
+__bag_info() { __bag_printc yellow "$@";  }
 __bag_warn() { __bag_printc magenta "$@" >&2 && return 1; }
 __bag_error() { __bag_printc red "$@" >&2 && return 1; }
 __bag_is_local_repo() { [[ -d $1 ]]; }
@@ -315,6 +315,7 @@ EOF
         run)
             mapfile -t cmds < "$BAG_BASE_DIR/agent"
             [[ -n $agt_cmd ]] && mapfile -t cmds < <(grep -iE "$agt_cmd" "$BAG_BASE_DIR/agent")
+            [[ ${#cmds[@]} -ne 0 ]] || __bag_error "No such agent: ${agt_cmd@Q}" || return 1
             for cmd in "${cmds[@]}"; do
                 __bag_info "Running ${cmd@Q}..."
                 (eval "eval ${cmd@Q}")
@@ -324,7 +325,7 @@ EOF
         edit) "${EDITOR:-vim}" "$BAG_BASE_DIR/agent" ;;
         list) cat "$BAG_BASE_DIR/agent" ;;
         help) echo "$agt_help" ;;
-        *) __bag_error "No such option: ${agt_opt@Q}" ;;
+        *) bag_agent run "$agt_opt" ;;
     esac
 }
 bag_link() {
