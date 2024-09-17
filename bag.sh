@@ -285,8 +285,8 @@ bag_agent() {
 bag agent <action> [args..]
 
 actions:
-    add <cmd>       add a agent cmd, need to be quoted
-    del <cmd-pat>   delete a agent cmd, need to be quoted
+    add <cmd>       add an agent cmd, need to be quoted
+    del <cmd-pat>   delete an agent cmd, need to be quoted
     run [cmd-pat]   run all or a pattern matched agent cmd
     edit            edit the agent file
     list            list all added agent cmd

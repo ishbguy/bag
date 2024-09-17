@@ -56,6 +56,7 @@ bag v1.0.0
 bag <subcmd> [somthing]
 
 subcmds:
+    agent                      agent for other package or repo operation cmd
     base       <path>          change bags' download directory
     edit                       edit bag list
     help                       show help message, like this output
@@ -64,7 +65,6 @@ subcmds:
     list                       list installed bags
     load                       load all plugins and update PATH
     plug       <dl:url>        add a bag plugin
-    proxy                      proxy an package or repo operation cmd
     uninstall  <dl:url>        uninstall a bag
     unlink     <dl:url>        unlink a bag, just like uninstall
     update     [pat]           update one or more bags
@@ -81,17 +81,17 @@ downloaders:
     link                       downloader for local file or directory as symbolic link
     local                      downloader for local file or directory
 
-bag proxy usage:
+bag agent usage:
 
-bag proxy <action> [args..]
+bag agent <action> [args..]
 
 actions:
-    add <cmd>       add a proxy cmd, need to be quoted
-    del <cmd-pat>   delete a proxy cmd, need to be quoted
-    run [cmd-pat]   run all or a pattern matched proxy cmd
-    edit            edit the proxy file
-    list            list all added proxy cmd
-    help            print the bag proxy help message like this
+    add <cmd>       add an agent cmd, need to be quoted
+    del <cmd-pat>   delete an agent cmd, need to be quoted
+    run [cmd-pat]   run all or a pattern matched agent cmd
+    edit            edit the agent file
+    list            list all added agent cmd
+    help            print the bag agent help message like this
 
 This program is released under the terms of MIT License.
 Get more infomation from <https://github.com/ishbguy/bag>.
