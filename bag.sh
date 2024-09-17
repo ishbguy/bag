@@ -125,9 +125,9 @@ from $BAG_URL by github downloader.
 downloaders:
 $(__bag_helper BAG_DOWNLOADER_HELP)
 
-bag proxy usage:
+bag agent usage:
 
-$(bag proxy help)
+$(bag agent help)
 
 This program is released under the terms of MIT License.
 Get more infomation from <$BAG_URL>.
@@ -277,54 +277,54 @@ bag_uninstall() {
     done
 }
 
-bag_proxy() {
-    local prx_opt="$1"
-    local prx_cmd="$2"
-    local prx_help="$(
+bag_agent() {
+    local agt_opt="$1"
+    local agt_cmd="$2"
+    local agt_help="$(
         cat << EOF
-bag proxy <action> [args..]
+bag agent <action> [args..]
 
 actions:
-    add <cmd>       add a proxy cmd, need to be quoted
-    del <cmd-pat>   delete a proxy cmd, need to be quoted
-    run [cmd-pat]   run all or a pattern matched proxy cmd
-    edit            edit the proxy file
-    list            list all added proxy cmd
-    help            print the bag proxy help message like this
+    add <cmd>       add a agent cmd, need to be quoted
+    del <cmd-pat>   delete a agent cmd, need to be quoted
+    run [cmd-pat]   run all or a pattern matched agent cmd
+    edit            edit the agent file
+    list            list all added agent cmd
+    help            print the bag agent help message like this
 EOF
     )"
 
-    [[ -f $BAG_BASE_DIR/proxy ]] || { mkdir -p "$BAG_BASE_DIR" && touch "$BAG_BASE_DIR/proxy"; }
+    [[ -f $BAG_BASE_DIR/agent ]] || { mkdir -p "$BAG_BASE_DIR" && touch "$BAG_BASE_DIR/agent"; }
 
-    case $prx_opt in
+    case $agt_opt in
         add)
-            [[ -n $prx_cmd ]] || __bag_error "Need a specific cmd, usage: bag proxy add <cmd>" || return 1
-            echo "$prx_cmd" >> "$BAG_BASE_DIR/proxy" \
-                && __bag_ok "Added proxy: ${prx_cmd@Q}" \
-                || __bag_error "Failed to add proxy: ${prx_cmd@Q}"
+            [[ -n $agt_cmd ]] || __bag_error "Need a specific cmd, usage: bag agent add <cmd>" || return 1
+            echo "$agt_cmd" >> "$BAG_BASE_DIR/agent" \
+                && __bag_ok "Added agent: ${agt_cmd@Q}" \
+                || __bag_error "Failed to add agent: ${agt_cmd@Q}"
             ;;
         del)
             local IFS=,
-            [[ -n $prx_cmd ]] || __bag_error "Need a cmd pattern, usage: bag proxy del <cmd-pat>" || return 1
-            mapfile -t found <<< "$(sed -rn "/${prx_cmd//\//\\\/}/p" "$BAG_BASE_DIR/proxy")"
-            sed -ri "/${prx_cmd//\//\\\/}/d" "$BAG_BASE_DIR/proxy" \
-                && __bag_ok "Deleted proxy: ${found[*]@Q}" \
-                || __bag_error "Failed to del proxy: ${found[*]@Q}"
+            [[ -n $agt_cmd ]] || __bag_error "Need a cmd pattern, usage: bag agent del <cmd-pat>" || return 1
+            mapfile -t found <<< "$(sed -rn "/${agt_cmd//\//\\\/}/p" "$BAG_BASE_DIR/agent")"
+            sed -ri "/${agt_cmd//\//\\\/}/d" "$BAG_BASE_DIR/agent" \
+                && __bag_ok "Deleted agent: ${found[*]@Q}" \
+                || __bag_error "Failed to del agent: ${found[*]@Q}"
             unset found
             ;;
         run)
-            mapfile -t cmds < "$BAG_BASE_DIR/proxy"
-            [[ -n $prx_cmd ]] && mapfile -t cmds < <(grep -iE "$prx_cmd" "$BAG_BASE_DIR/proxy")
+            mapfile -t cmds < "$BAG_BASE_DIR/agent"
+            [[ -n $agt_cmd ]] && mapfile -t cmds < <(grep -iE "$agt_cmd" "$BAG_BASE_DIR/agent")
             for cmd in "${cmds[@]}"; do
                 __bag_info "Running ${cmd@Q}..."
                 (eval "eval ${cmd@Q}")
             done
             unset cmds
             ;;
-        edit) "${EDITOR:-vim}" "$BAG_BASE_DIR/proxy" ;;
-        list) cat "$BAG_BASE_DIR/proxy" ;;
-        help) echo "$prx_help" ;;
-        *) __bag_error "No such option: ${prx_opt@Q}" ;;
+        edit) "${EDITOR:-vim}" "$BAG_BASE_DIR/agent" ;;
+        list) cat "$BAG_BASE_DIR/agent" ;;
+        help) echo "$agt_help" ;;
+        *) __bag_error "No such option: ${agt_opt@Q}" ;;
     esac
 }
 bag_link() {
@@ -366,7 +366,7 @@ __bag_init_subcmd() {
     BAG_SUBCMDS_HELP[update]="[pat]@update one or more bags"
     BAG_SUBCMDS_HELP[list]="list installed bags"
     BAG_SUBCMDS_HELP[edit]="edit bag list"
-    BAG_SUBCMDS_HELP[proxy]="proxy an package or repo operation cmd"
+    BAG_SUBCMDS_HELP[agent]="agent for other package or repo operation cmd"
     BAG_SUBCMDS_HELP[link]="<path> <dl:url>@add an existed package or repo by symbolic link"
     BAG_SUBCMDS_HELP[unlink]="<dl:url>@unlink a bag, just like uninstall"
 
