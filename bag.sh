@@ -133,8 +133,25 @@ This program is released under the terms of MIT License.
 Get more infomation from <$BAG_URL>.
 EOF
 }
-bag_base() { [[ -n $1 ]] && __bag_is_local_repo "$1" && BAG_BASE_DIR="$1"; }
-bag_plug() { [[ -n $1 ]] && BAG_PLUGINS+=("$1"); }
+bag_base() {
+    if [[ $# -eq 0 ]]; then
+        echo "$BAG_BASE_DIR"
+    elif [[ $# -eq 1 && -n $1 && -d $1 ]]; then
+        BAG_BASE_DIR="$1"
+    else
+        __bag_error "Usage: bag base [dir]"
+    fi
+}
+bag_plug() {
+    if [[ $# -eq 0 ]]; then
+        local IFS=$'\n'
+        echo "${BAG_PLUGINS[*]}"
+    elif [[ $# -eq 1 && -n $1 ]] && __bag_is_remote_repo "$1"; then
+        BAG_PLUGINS[$1]="$1"
+    else
+        __bag_error "Usage: bag plug [dl:url]"
+    fi
+}
 bag_list() { [[ -f $BAG_BASE_DIR/bags ]] && cat "$BAG_BASE_DIR/bags"; }
 bag_edit() { [[ -f $BAG_BASE_DIR/bags ]] && "${EDITOR:-vim}" "$BAG_BASE_DIR/bags"; }
 
@@ -255,6 +272,7 @@ bag_update() {
     [[ ${#bag_pats[@]} -eq 0 ]] && bag_pats=($(bag list))
     for bag_url in "${bag_pats[@]}"; do
         mapfile -t bags < <(grep -iE "$bag_url" "$BAG_BASE_DIR/bags")
+        [[ ${#bags[@]} -ne 0 ]] || __bag_error "No such bag: ${bag_url@Q}" || continue
         for bag in "${bags[@]}"; do
             local bag_name="$(__bag_get_bag_name "${bag##*:}")"
 
@@ -269,6 +287,7 @@ bag_update() {
 }
 
 bag_uninstall() {
+    [[ $# -ne 0 ]] || __bag_error "Usage: bag uninstall <dl-url>"
     for bag_url in "$@"; do
         local bag="$(__bag_get_bag_name "$bag_url")"
         __bag_has_bag "$bag" || __bag_error "No such bag: $bag" || continue
@@ -306,7 +325,9 @@ EOF
         del)
             local IFS=,
             [[ -n $agt_cmd ]] || __bag_error "Need a cmd pattern, usage: bag agent del <cmd-pat>" || return 1
-            mapfile -t found <<< "$(sed -rn "/${agt_cmd//\//\\\/}/p" "$BAG_BASE_DIR/agent")"
+            mapfile -t found < <(sed -rn "/${agt_cmd//\//\\\/}/p" "$BAG_BASE_DIR/agent")
+            [[ ${#found[@]} -ne 0 ]] || __bag_error "No such agent: ${agt_cmd@Q}" || return 1
+            echo "${#found[@]} ${found[*]}"
             sed -ri "/${agt_cmd//\//\\\/}/d" "$BAG_BASE_DIR/agent" \
                 && __bag_ok "Deleted agent: ${found[*]@Q}" \
                 || __bag_error "Failed to del agent: ${found[*]@Q}"
@@ -359,8 +380,8 @@ __bag_init_subcmd() {
     declare -gA BAG_SUBCMDS_HELP
     BAG_SUBCMDS_HELP[help]="show help message, like this output"
     BAG_SUBCMDS_HELP[version]="show version number"
-    BAG_SUBCMDS_HELP[base]="<path>@change bags' download directory"
-    BAG_SUBCMDS_HELP[plug]="<dl:url>@add a bag plugin"
+    BAG_SUBCMDS_HELP[base]="[path]@change or list bags download directory"
+    BAG_SUBCMDS_HELP[plug]="[dl:url]@add a bag plugin or list all plugins"
     BAG_SUBCMDS_HELP[load]="load all plugins and update PATH"
     BAG_SUBCMDS_HELP[install]="[dl:url]@install a bag"
     BAG_SUBCMDS_HELP[uninstall]="<dl:url>@uninstall a bag"
@@ -384,7 +405,7 @@ bag_init() {
     declare -g BAG_URL='https://github.com/ishbguy/bag'
     declare -g BAG_BASE_DIR="${BAG_BASE_DIR:-$HOME/.$BAG_PRONAME}"
     declare -g BAG_CONFIG="${BAG_CONFIG:-$HOME/.${BAG_PRONAME}rc}"
-    declare -ga BAG_PLUGINS=()
+    declare -gA BAG_PLUGINS
 
     __bag_init_color
     __bag_init_subcmd

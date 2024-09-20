@@ -57,14 +57,14 @@ bag <subcmd> [somthing]
 
 subcmds:
     agent                      agent for other package or repo operation cmd
-    base       <path>          change bags' download directory
+    base       [path]          change or list bags download directory
     edit                       edit bag list
     help                       show help message, like this output
     install    [dl:url]        install a bag
     link       <path> <dl:url> add an existed package or repo by symbolic link
     list                       list installed bags
     load                       load all plugins and update PATH
-    plug       <dl:url>        add a bag plugin
+    plug       [dl:url]        add a bag plugin or list all plugins
     uninstall  <dl:url>        uninstall a bag
     unlink     <dl:url>        unlink a bag, just like uninstall
     update     [pat]           update one or more bags

@@ -1,0 +1,29 @@
+name: actions bats test
+on: [push, pull_request]
+jobs:
+  bats-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+      - name: Run bacon tests by bats
+        shell: 'script -q -e -c "bash {0}"' # work around tty issues
+        env:
+          TERM: linux # fix tput for tty issue work around
+        run: |
+          sudo npm install -g bats
+          bats test
+
+  # bash-version:
+  #   strategy:
+  #     matrix:
+  #       version: ['4.4', '4', '5.0', '5.1', '5', 'latest']
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Run test on bash version ${{ matrix.version }}
+  #       shell: 'script -q -e -c "bash {0}"' # work around tty issues
+  #       run: |
+  #         set -e
+  #         docker run -it "bash:${{ matrix.version }}" --version
+  #         time docker run -it -v "$PWD:/bacon" "bash:${{ matrix.version }}"  bash -c "apk add --no-cache git ncurses && git clone https://github.com/bats-core/bats-core.git && cd bats-core && ./install.sh /usr/local && cd /bacon && bats --print-output-on-failure --tap test"
