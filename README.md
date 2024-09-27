@@ -81,6 +81,19 @@ downloaders:
     link                       downloader for local file or directory as symbolic link
     local                      downloader for local file or directory
 
+bag list usage:
+
+bag list [options]
+
+options:
+                               list without option will list all bags <dl-url>
+    -a|--all|all               list all bags include autoload notation(@)
+                               and post install cmd(#!)
+    -@|@|--autoload|autoload   list autoload bags without '@' or '#!' string
+    -p|--post|post             list bags configured post install cmd but
+                               without '#!' cmd string
+    -h|--help|help             print this help message
+
 bag agent usage:
 
 bag agent <action> [args..]

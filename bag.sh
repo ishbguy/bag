@@ -125,7 +125,7 @@ from $BAG_URL by github downloader.
 downloaders:
 $(__bag_helper BAG_DOWNLOADER_HELP)
 
-bag agent usage:
+$(bag list help)
 
 $(bag agent help)
 
@@ -152,7 +152,45 @@ bag_plug() {
         __bag_error "Usage: bag plug [dl:url]"
     fi
 }
-bag_list() { [[ -f $BAG_BASE_DIR/bags ]] && cat "$BAG_BASE_DIR/bags"; }
+bag_list() {
+    local list_help="$(
+        cat << EOF
+bag list usage:
+
+bag list [options]
+
+options:
+                               list without option will list all bags <dl-url>
+    -a|--all|all               list all bags include autoload notation(@)
+                               and post install cmd(#!)
+    -@|@|--autoload|autoload   list autoload bags without '@' or '#!' string
+    -p|--post|post             list bags configured post install cmd but
+                               without '#!' cmd string
+    -h|--help|help             print this help message
+EOF
+    )"
+    local opt=$1
+
+    [[ $opt =~ (-h|--help|help) ]] && echo "$list_help" && return 0
+
+    [[ -f $BAG_BASE_DIR/bags ]] || return 1
+
+    if [[ $# -eq 0 ]]; then
+        sed -r 's/^@//g;s/#!.*$//g' "$BAG_BASE_DIR/bags"
+    else
+        case $opt in
+            -a|--all|all) cat "$BAG_BASE_DIR/bags" ;;
+            -@|@|--autoload|autoload)
+                sed -rn '/^@/p'  "$BAG_BASE_DIR/bags" | sed -r 's/^@//g;s/#!.*$//g'
+                ;;
+            -p|--post|post)
+                sed -rn '/#!.*$/p' "$BAG_BASE_DIR/bags" | sed -r 's/^@//g;s/#!.*$//g'
+                ;;
+            -h|--help|help) echo "$list_help" ;;
+            *) __bag_error "$list_help" ;;
+        esac
+    fi
+}
 bag_edit() { [[ -f $BAG_BASE_DIR/bags ]] && "${EDITOR:-vim}" "$BAG_BASE_DIR/bags"; }
 
 __bag_update_path() {
@@ -301,6 +339,8 @@ bag_agent() {
     local agt_cmd="$2"
     local agt_help="$(
         cat << EOF
+bag agent usage:
+
 bag agent <action> [args..]
 
 actions:
@@ -402,7 +442,7 @@ bag_init() {
     declare -g BAG_AUTHOR=ishbguy
     declare -g BAG_PRONAME="$(basename "${BAG_ABS_SRC}" .sh)"
     declare -g BAG_VERSION='v1.0.0'
-    declare -g BAG_URL='https://github.com/ishbguy/bag'
+    declare -g BAG_URL="https://github.com/$BAG_AUTHOR/$BAG_PRONAME"
     declare -g BAG_BASE_DIR="${BAG_BASE_DIR:-$HOME/.$BAG_PRONAME}"
     declare -g BAG_CONFIG="${BAG_CONFIG:-$HOME/.${BAG_PRONAME}rc}"
     declare -gA BAG_PLUGINS
@@ -423,6 +463,6 @@ bag() {
 
 bag_init
 
-[[ -z ${FUNCNAME[0]} || ${FUNCNAME[0]} == "main" ]] && bag "$@"
+[[ -n ${FUNCNAME[0]} && ${FUNCNAME[0]} != "main" ]] || bag "$@"
 
 # vim:set ft=sh ts=4 sw=4:

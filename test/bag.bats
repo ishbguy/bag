@@ -55,9 +55,44 @@ load bag-helper
 
     run bag list
     assert_output ""
-    echo "gh:ishbguy/bag" > "$PROJECT_TMP_DIR/bags"
+    echo "@gh:ishbguy/bag#!true" > "$PROJECT_TMP_DIR/bags"
     run bag list
     assert_output "gh:ishbguy/bag"
+    run bag list -a
+    assert_output "@gh:ishbguy/bag#!true"
+    run bag list --all
+    assert_output "@gh:ishbguy/bag#!true"
+    run bag list all
+    assert_output "@gh:ishbguy/bag#!true"
+
+    printf "@gh:ishbguy/bag\ngh:ishbguy/bag-post#!true" > "$PROJECT_TMP_DIR/bags"
+    run bag list @
+    assert_output "gh:ishbguy/bag"
+    run bag list -@
+    assert_output "gh:ishbguy/bag"
+    run bag list --autoload
+    assert_output "gh:ishbguy/bag"
+    run bag list autoload
+    assert_output "gh:ishbguy/bag"
+
+    run bag list -p
+    assert_match "gh:ishbguy/bag-post"
+    run bag list --post
+    assert_match "gh:ishbguy/bag-post"
+    run bag list post
+    assert_match "gh:ishbguy/bag-post"
+
+    run bag list -h
+    assert_match "print this help message"
+    run bag list --help
+    assert_match "print this help message"
+    run bag list help
+    assert_match "print this help message"
+
+    run bag list -x
+    assert_match "print this help message"
+    run bag list no-such-option
+    assert_match "print this help message"
 }
 
 @test "bag edit" {
