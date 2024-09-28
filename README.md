@@ -52,7 +52,7 @@ The only action you need to do is to add below instruction in your bash config f
 After login `bash`, you can use `bag` command to manage packges and plugins. `bag help` will print usage.
 
 ```
-bag v1.0.0
+bag v1.1.0
 bag <subcmd> [somthing]
 
 subcmds:
@@ -72,6 +72,12 @@ subcmds:
 
 <dl:url> like 'gh:ishbguy/bag' means that it will install or update bag
 from https://github.com/ishbguy/bag by github downloader.
+
+If <dl:url> prefix with '@' like '@gh:ishbguy/bag', that means it will run
+all the autoload/*.sh scripts under the bag directory.
+
+If <dl:url> suffix with '#!.*' like 'gh:ishbguy/bag#!echo hello', that means
+it will run the post-install hook 'echo hello'.
 
 downloaders:
     file                       alias for local downloader

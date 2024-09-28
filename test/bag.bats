@@ -31,24 +31,6 @@ load bag-helper
     assert_match "Usage: bag base \[dir\]"
 }
 
-@test "bag plug" {
-    local -A BAG_PLUGINS=()
-
-    run bag plug
-    assert_output ""
-
-    run bag plug not-dl-url
-    assert_match "Usage: bag plug \[dl:url\]"
-
-    bag plug gh:ishbguy/bag
-    run bag plug
-    assert_output "gh:ishbguy/bag"
-
-    bag plug gh:ishbguy/bag # add the same bag for twice
-    run bag plug
-    assert_output "gh:ishbguy/bag"
-}
-
 @test "bag list" {
     local BAG_BASE_DIR
     bag base "$PROJECT_TMP_DIR"
@@ -93,6 +75,34 @@ load bag-helper
     assert_match "print this help message"
     run bag list no-such-option
     assert_match "print this help message"
+}
+
+@test "bag plug" {
+    local -A BAG_PLUGINS=()
+    bag base "$PROJECT_TMP_DIR"
+
+    run bag plug
+    assert_output ""
+
+    run bag plug not-dl-url
+    assert_match "Usage: bag plug \[dl:url\]"
+
+    bag plug gh:ishbguy/bag
+    run bag plug
+    assert_output "gh:ishbguy/bag"
+
+    bag plug gh:ishbguy/bag # add the same bag for twice
+    run bag plug
+    assert_output "gh:ishbguy/bag"
+
+    bag plug '@gh:ishbguy/baux#!echo run after installed'
+    run bag plug
+    assert_match "gh:ishbguy/baux"
+
+    BAG_PLUGINS=()
+    echo "@gh:ishbguy/bag#!echo bag plug" > "$PROJECT_TMP_DIR/bags"
+    run bag plug
+    assert_match "gh:ishbguy/bag"
 }
 
 @test "bag edit" {
@@ -231,6 +241,13 @@ load bag-helper
     mkdir -p "$repo"/{autoload,bin}
     echo "echo 'echo Hello from $repo' > $repo/bin/hello.sh" > "$repo/autoload/gen-hello.sh"
     (bag plug "local:$repo" && bag install && bag load && [[ $PATH =~ $PROJECT_TMP_DIR/A/bin ]])
+    run cat "$repo/bin/hello.sh"
+    assert_match "Hello"
+
+    BAG_PLUGINS=()
+    rm -rf "$repo/bin/hello.sh"
+    echo "@local:$repo" > "$PROJECT_TMP_DIR/bags"
+    (bag install && bag load && [[ $PATH =~ $PROJECT_TMP_DIR/A/bin ]])
     run cat "$repo/bin/hello.sh"
     assert_match "Hello"
 }

@@ -78,7 +78,7 @@ __bag_info() { __bag_printc yellow "$@";  }
 __bag_warn() { __bag_printc magenta "$@" >&2 && return 1; }
 __bag_error() { __bag_printc red "$@" >&2 && return 1; }
 __bag_is_local_repo() { [[ -d $1 ]]; }
-__bag_is_remote_repo() { [[ $1 =~ ^[[:alnum:]_-][[:alnum:]._-]*:[[:alnum:]./_-]+$ ]]; }
+__bag_is_remote_repo() { [[ $1 =~ ^@?[[:alnum:]_-][[:alnum:]._-]*:[[:alnum:]./_-]+(#!.*)?$ ]]; }
 __bag_is_repo() { __bag_is_local_repo "$1" || __bag_is_remote_repo "$1"; }
 __bag_defined() { declare -p "$1" &> /dev/null; }
 __bag_defined_func() { declare -f "$1" &> /dev/null; }
@@ -122,6 +122,12 @@ $(__bag_helper BAG_SUBCMDS_HELP)
 <dl:url> like 'gh:ishbguy/bag' means that it will install or update bag
 from $BAG_URL by github downloader.
 
+If <dl:url> prefix with '@' like '@gh:ishbguy/bag', that means it will run
+all the autoload/*.sh scripts under the bag directory.
+
+If <dl:url> suffix with '#!.*' like 'gh:ishbguy/bag#!echo hello', that means
+it will run the post-install hook 'echo hello'.
+
 downloaders:
 $(__bag_helper BAG_DOWNLOADER_HELP)
 
@@ -144,10 +150,18 @@ bag_base() {
 }
 bag_plug() {
     if [[ $# -eq 0 ]]; then
-        local IFS=$'\n'
-        echo "${BAG_PLUGINS[*]}"
+        if [[ ${#BAG_PLUGINS[@]} -ne 0 ]]; then
+            local IFS=$'\n'
+            echo "${BAG_PLUGINS[*]}" | sed -r 's/^@//g;s/#!.*$//g'
+        else
+            bag list --autoload
+        fi
     elif [[ $# -eq 1 && -n $1 ]] && __bag_is_remote_repo "$1"; then
-        BAG_PLUGINS[$1]="$1"
+        local bag_url="$1"
+        bag_url="${bag_url/#@/}"   # remove beginning '@'
+        bag_url="${bag_url/%#!*/}" # remove tailing '#!' cmd string
+        bag_url="${bag_url%%+(/)}" # remove tailing '/'
+        BAG_PLUGINS[$bag_url]="@${1#@}"
     else
         __bag_error "Usage: bag plug [dl:url]"
     fi
@@ -202,7 +216,7 @@ __bag_update_path() {
     export PATH
 }
 __bag_load_plugins() {
-    for plug_url in "${BAG_PLUGINS[@]}"; do
+    for plug_url in $(bag plug); do
         local plug="$(__bag_get_bag_name "${plug_url##*:}")"
         [[ -e $BAG_BASE_DIR/$plug/autoload ]] || continue
         # FIXME: avoid to load a script for twice
@@ -301,7 +315,7 @@ bag_install() {
     local -A post_cmds
     local bag_line
 
-    [[ ${#bags[@]} -eq 0 ]] && bags=("${BAG_PLUGINS[@]}")
+    [[ ${#bags[@]} -eq 0 ]] && bags=($(bag plug))
     [[ -d $BAG_BASE_DIR ]] || mkdir -p "$BAG_BASE_DIR"
 
     for bag_line in "${bags[@]}"; do
@@ -490,7 +504,7 @@ __bag_init_subcmd() {
 bag_init() {
     declare -g BAG_AUTHOR=ishbguy
     declare -g BAG_PRONAME="$(basename "${BAG_ABS_SRC}" .sh)"
-    declare -g BAG_VERSION='v1.0.0'
+    declare -g BAG_VERSION='v1.1.0'
     declare -g BAG_URL="https://github.com/$BAG_AUTHOR/$BAG_PRONAME"
     declare -g BAG_BASE_DIR="${BAG_BASE_DIR:-$HOME/.$BAG_PRONAME}"
     declare -g BAG_CONFIG="${BAG_CONFIG:-$HOME/.${BAG_PRONAME}rc}"
