@@ -286,42 +286,91 @@ __bag_init_downloader() {
 }
 __bag_has_downloader() { __bag_has_mapfunc BAG_DOWNLOADER "$1"; }
 
+__bag_post_install_hook() {
+    local -n cmds=$1
+    local bag
+    for bag in "${!cmds[@]}" ; do
+        local cmd="${cmds[$bag]}"
+        [[ -n $cmd ]] || continue
+        local bag_path="$BAG_BASE_DIR/$(__bag_get_bag_name "$bag")"
+        (cd "$bag_path"; eval "$cmd")
+    done
+}
 bag_install() {
     local -a bags=("$@")
+    local -A post_cmds
+    local bag_line
+
     [[ ${#bags[@]} -eq 0 ]] && bags=("${BAG_PLUGINS[@]}")
     [[ -d $BAG_BASE_DIR ]] || mkdir -p "$BAG_BASE_DIR"
-    for bag_url in "${bags[@]}"; do
-        bag_url="${bag_url%%+(/)}"
-        local bag="$(__bag_get_bag_name "${bag_url##*:}")"
 
-        __bag_has_downloader "${bag_url%%:*}" \
-            || __bag_error "Does not support '${bag_url%%:*}' to download." || continue
+    for bag_line in "${bags[@]}"; do
+        local bag_url dloader bag cmd
+
+        bag_url="$bag_line"
+        bag_url="${bag_url/#@/}"   # remove beginning '@'
+        bag_url="${bag_url/%#!*/}" # remove tailing '#!' cmd string
+        bag_url="${bag_url%%+(/)}" # remove tailing '/'
+        
+        dloader="${bag_url%%:*}"
+        bag="$(__bag_get_bag_name "${bag_url##*:}")"
+
+        [[ $bag_line =~ '#!' ]] && cmd="${bag_line##*\#!}" || cmd=""
+
+        __bag_has_downloader "$dloader" \
+            || __bag_error "Does not support ${dloader@Q} to download." || continue
         ! __bag_has_bag "$bag" || __bag_error "Already exist bag: $bag" || continue
 
         __bag_info "Installing $bag_url..."
-        "${BAG_DOWNLOADER[${bag_url%%:*}]}" install "$bag_url" \
-            && echo "$bag_url" >> "$BAG_BASE_DIR/bags" \
-            || __bag_error "Failed to install $bag_url"
+        if "${BAG_DOWNLOADER[$dloader]}" install "$bag_url"; then
+            echo "$bag_line" >> "$BAG_BASE_DIR/bags" && post_cmds[$bag_url]="$cmd"
+        else
+            __bag_error "Failed to install $bag_url"
+        fi
     done
+
+    # running post-install hooks
+    __bag_post_install_hook post_cmds
 }
 
 bag_update() {
     local -a bag_pats=("$@") bags=()
+    local -A post_cmds
+    local bag_line
+
     [[ ${#bag_pats[@]} -eq 0 ]] && bag_pats=($(bag list))
-    for bag_url in "${bag_pats[@]}"; do
-        mapfile -t bags < <(grep -iE "$bag_url" "$BAG_BASE_DIR/bags")
-        [[ ${#bags[@]} -ne 0 ]] || __bag_error "No such bag: ${bag_url@Q}" || continue
-        for bag in "${bags[@]}"; do
-            local bag_name="$(__bag_get_bag_name "${bag##*:}")"
 
-            __bag_has_downloader "${bag%%:*}" \
-                || __bag_error "Does not support '${bag%%:*}' to download." || continue
-            __bag_has_bag "$bag_name" || __bag_error "No such bag: $bag_url" || continue
+    for bag_pat in "${bag_pats[@]}"; do
+        mapfile -t bags < <(grep -iE "$bag_pat" "$BAG_BASE_DIR/bags")
+        [[ ${#bags[@]} -ne 0 ]] || __bag_error "No such bag: ${bag_pat@Q}" || continue
+        for bag_line in "${bags[@]}"; do
+            local bag_url dloader bag cmd
 
-            __bag_info "Updating $bag..."
-            "${BAG_DOWNLOADER[${bag%%:*}]}" update "$bag" || __bag_error "Failed to update $bag"
+            bag_url="$bag_line"
+            bag_url="${bag_url/#@/}"   # remove beginning '@'
+            bag_url="${bag_url/%#!*/}" # remove tailing '#!' cmd string
+            bag_url="${bag_url%%+(/)}" # remove tailing '/'
+            
+            dloader="${bag_url%%:*}"
+            bag="$(__bag_get_bag_name "${bag_url##*:}")"
+
+            [[ $bag_line =~ '#!' ]] && cmd="${bag_line##*\#!}" || cmd=""
+
+            __bag_has_downloader "$dloader" \
+                || __bag_error "Does not support ${dloader@Q} to download." || continue
+            __bag_has_bag "$bag" || __bag_error "No such bag: $bag_url" || continue
+
+            __bag_info "Updating $bag_url..."
+            if "${BAG_DOWNLOADER[$dloader]}" update "$bag_url"; then
+                post_cmds[$bag_url]="$cmd"
+            else
+                __bag_error "Failed to update $bag_url"
+            fi
         done
     done
+
+    # running post-update hooks, same as post-install hooks
+    __bag_post_install_hook post_cmds
 }
 
 bag_uninstall() {
@@ -330,7 +379,7 @@ bag_uninstall() {
         local bag="$(__bag_get_bag_name "$bag_url")"
         __bag_has_bag "$bag" || __bag_error "No such bag: $bag" || continue
         __bag_info "Uninstall $bag..."
-        rm -rf "$BAG_BASE_DIR/$bag" && sed -ri '/'"\\/$bag"'$/d' "$BAG_BASE_DIR/bags"
+        rm -rf "$BAG_BASE_DIR/$bag" && sed -ri '/'"\\/$bag"'/d' "$BAG_BASE_DIR/bags"
     done
 }
 

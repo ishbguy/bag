@@ -108,7 +108,7 @@ load bag-helper
     local -A BAG_PLUGINS
     local BAG_BASE_DIR
     bag base "$PROJECT_TMP_DIR"
-    mkdir -p "$PROJECT_TMP_DIR"/XXXXXX/{A,B,C}/{autoload,bin}
+    mkdir -p "$PROJECT_TMP_DIR"/XXXXXX/{A,B,C,D}/{autoload,bin}
 
     run bag install
     assert_success
@@ -118,16 +118,29 @@ load bag-helper
     assert_match "Does not support"
 
     run bag install "local:$PROJECT_TMP_DIR/XXXXXX/A"
-    assert_success
+    refute_match 'Does not support'
+    refute_match 'Failed to install'
     run bag install "file:$PROJECT_TMP_DIR/XXXXXX/B"
-    assert_success
+    refute_match 'Does not support'
+    refute_match 'Failed to install'
     run bag install "link:$PROJECT_TMP_DIR/XXXXXX/C"
-    assert_success
+    refute_match 'Failed to install'
+    refute_match 'Does not support'
     run bag install gh:ishbguy/bag
-    assert_success
+    refute_match 'Does not support'
+    refute_match 'Failed to install'
 
     run bag install github:ishbguy/bag
+    refute_match 'Does not support'
     assert_match "Already exist bag"
+
+    run bag install "@local:$PROJECT_TMP_DIR/XXXXXX/D#!touch test-file"
+    refute_match 'Does not support'
+    refute_match 'Failed to install'
+    run bag list all
+    assert_match touch
+    run test -f "$PROJECT_TMP_DIR/D/test-file"
+    assert_success
 }
 
 @test "bag link" {
@@ -155,18 +168,37 @@ load bag-helper
         mkdir -p "$repo"/{autoload,bin}
         BAG_PLUGINS[$repo]="local:$repo"
     done
-    run bag install github:ishbguy/bag
     run bag install
+    refute_match 'Does not support'
+    refute_match 'Failed to install'
+
+    mkdir -p "$PROJECT_TMP_DIR"/XXXXXX/D/{autoload,bin}
+    run bag install "@local:$PROJECT_TMP_DIR/XXXXXX/D#!echo bag update >> test-file"
+    refute_match 'Does not support'
+    refute_match 'Failed to install'
+
+    run bag install github:ishbguy/bag
+    refute_match 'Does not support'
+    refute_match 'Failed to install'
 
     run bag update
-    assert_success
-    run bag update '[ABC]'
-    assert_success
+    refute_match 'Does not support'
+    refute_match 'Failed to update'
+    run bag update 'XXXXXX/[ABC]'
+    refute_match 'Does not support'
+    refute_match 'Failed to update'
+
     run bag update no-such-bag
     assert_match "No such bag"
     rm -rf "$PROJECT_TMP_DIR/C"
-    run bag update C
+    run bag update XXXXXX/C
     assert_match "No such bag"
+
+    run bag update XXXXXX/D
+    run test -f "$PROJECT_TMP_DIR/D/test-file"
+    assert_success
+    run wc -l "$PROJECT_TMP_DIR/D/test-file"
+    assert_match 3
 }
 
 @test "bag uninstall & unlink" {
@@ -180,10 +212,14 @@ load bag-helper
     run bag install
     run bag uninstall
     assert_match "Usage: bag uninstall <dl-url>"
-    run bag uninstall A
+    run bag uninstall XXXXXX/A
     assert_match "Uninstall"
-    run bag uninstall B C
+    run bag list
+    refute_match XXXXXX/A
+    run bag uninstall XXXXXX/B XXXXXX/C
     assert_match "Uninstall"
+    run bag list
+    refute_match 'XXXXXX/[BC]'
 }
 
 @test "bag load" {
