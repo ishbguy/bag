@@ -467,6 +467,15 @@ bag_unlink() {
     bag_uninstall "$@"
 }
 
+bag_cd() {
+    local bag_dir="$BAG_BASE_DIR/$(basename "$*")"
+    if [[ -d $bag_dir ]]; then
+        cd $bag_dir
+    else
+        __bag_error "No such bag: $*"
+    fi
+}
+
 __bag_helper() {
     local -n help_array="$1"
     local -a sorted=($(echo "${!help_array[@]}" | sed -r 's/\s+/\n/g' | sort))
@@ -494,6 +503,7 @@ __bag_init_subcmd() {
     BAG_SUBCMDS_HELP[agent]="agent for other package or repo operation cmd"
     BAG_SUBCMDS_HELP[link]="<path> <dl:url>@add an existed package or repo by symbolic link"
     BAG_SUBCMDS_HELP[unlink]="<dl:url>@unlink a bag, just like uninstall"
+    BAG_SUBCMDS_HELP[cd]="[dl:url]@change to bag base directory or a specific bag directory"
 
     declare -gA BAG_SUBCMDS
     for cmd in "${!BAG_SUBCMDS_HELP[@]}"; do

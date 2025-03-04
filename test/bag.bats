@@ -293,3 +293,22 @@ load bag-helper
     assert_match "No such agent"
 }
 
+@test "bag cd" {
+    local BAG_BASE_DIR
+    local repo="$PROJECT_TMP_DIR"/XXXXXX
+    bag base "$PROJECT_TMP_DIR"
+
+    mkdir -p "$repo"/A
+    run bag link "$repo/A" "local:$repo/A"
+
+    bag cd
+    run pwd
+    assert_output "$PROJECT_TMP_DIR"
+    bag cd A
+    run pwd
+    assert_output "$PROJECT_TMP_DIR/A"
+
+    run bag cd B
+    assert_match "No such bag"
+}
+
